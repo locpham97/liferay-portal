@@ -32,7 +32,9 @@ import com.liferay.portal.kernel.repository.model.FileEntry;
 import com.liferay.portal.kernel.repository.model.Folder;
 import com.liferay.portal.kernel.util.OrderByComparator;
 
+import java.util.Collections;
 import java.util.Locale;
+import java.util.Set;
 
 import javax.portlet.PortletException;
 import javax.portlet.PortletURL;
@@ -67,6 +69,10 @@ public class JournalItemSelectorViewDisplayContext {
 
 	public Folder fetchAttachmentsFolder(long userId, long groupId) {
 		return null;
+	}
+
+	public Set<String> getAllowedCreationMenuUIItemKeys() {
+		return Collections.emptySet();
 	}
 
 	public PortletURL getEditImageURL(
