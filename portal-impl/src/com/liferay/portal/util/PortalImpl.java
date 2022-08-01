@@ -3508,7 +3508,14 @@ public class PortalImpl implements Portal {
 					locale = LocaleUtil.fromLanguageId(defaultLanguageId);
 
 					if (LanguageUtil.isAvailableLocale(groupId, locale)) {
-						if (initialize) {
+						HttpServletRequest originalHttpServletRequest =
+							getOriginalServletRequest(httpServletRequest);
+
+						String currentURL =
+							(String)originalHttpServletRequest.getAttribute(
+								WebKeys.CURRENT_URL);
+
+						if (initialize && !currentURL.endsWith(".map")) {
 							setLocale(
 								httpServletRequest, httpServletResponse,
 								locale);
