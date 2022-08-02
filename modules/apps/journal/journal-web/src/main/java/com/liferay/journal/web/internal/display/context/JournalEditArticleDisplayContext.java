@@ -219,6 +219,8 @@ public class JournalEditArticleDisplayContext {
 	public Map<String, Object> getDataEngineLayoutRendererComponentContext() {
 		return HashMapBuilder.<String, Object>put(
 			"currentLanguageId", getSelectedLanguageId()
+		).put(
+			"portletId", _themeDisplay.getPpid()
 		).build();
 	}
 

@@ -12,7 +12,7 @@
  * details.
  */
 
-export default function ({currentLanguageId, namespace}) {
+export default function ({currentLanguageId, namespace, portletId}) {
 	let localeChangedHandler = null;
 	let defaultLocaleChangedHandler = null;
 
@@ -55,6 +55,7 @@ export default function ({currentLanguageId, namespace}) {
 				dataEngineReactComponentRef,
 				languageId: currentLanguageId,
 				namespace,
+				portletId,
 				preserveValue: true,
 			});
 		}
@@ -77,6 +78,7 @@ function switchLanguage({
 	dataEngineReactComponentRef,
 	languageId,
 	namespace,
+	portletId = '',
 	preserveValue = false,
 }) {
 	if (dataEngineReactComponentRef?.current) {
@@ -87,6 +89,7 @@ function switchLanguage({
 		dataEngineReactComponentRef.current.updateEditingLanguageId({
 			defaultLanguageId: defaultLanguageIdInput.value,
 			editingLanguageId: languageId,
+			portletId,
 			preserveValue,
 		});
 	}
