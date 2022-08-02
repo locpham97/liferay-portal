@@ -529,6 +529,7 @@ public class DataLayoutResourceImpl extends BaseDataLayoutResourceImpl {
 			(ThemeDisplay)contextHttpServletRequest.getAttribute(
 				WebKeys.THEME_DISPLAY);
 
+		themeDisplay.setPpid(dataLayoutRenderingContext.getPortletId());
 		themeDisplay.setScopeGroupId(
 			dataLayoutRenderingContext.getScopeGroupId());
 		themeDisplay.setSiteGroupId(

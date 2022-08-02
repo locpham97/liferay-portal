@@ -209,6 +209,8 @@ components:
                     type: string
                 pathThemeImages:
                     type: string
+                portletId:
+                    type: string
                 readOnly:
                     type: boolean
                 scopeGroupId:
