@@ -120,6 +120,27 @@ public class DataLayoutRenderingContext implements Cloneable, Serializable {
 
 	protected String pathThemeImages;
 
+	public String getPortletId() {
+		return portletId;
+	}
+
+	public void setPortletId(String portletId) {
+		this.portletId = portletId;
+	}
+
+	public void setPortletId(
+		UnsafeSupplier<String, Exception> portletIdUnsafeSupplier) {
+
+		try {
+			portletId = portletIdUnsafeSupplier.get();
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	protected String portletId;
+
 	public Boolean getReadOnly() {
 		return readOnly;
 	}

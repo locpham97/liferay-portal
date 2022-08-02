@@ -175,6 +175,34 @@ public class DataLayoutRenderingContext implements Serializable {
 	protected String pathThemeImages;
 
 	@Schema
+	public String getPortletId() {
+		return portletId;
+	}
+
+	public void setPortletId(String portletId) {
+		this.portletId = portletId;
+	}
+
+	@JsonIgnore
+	public void setPortletId(
+		UnsafeSupplier<String, Exception> portletIdUnsafeSupplier) {
+
+		try {
+			portletId = portletIdUnsafeSupplier.get();
+		}
+		catch (RuntimeException re) {
+			throw re;
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@GraphQLField
+	@JsonProperty(access = JsonProperty.Access.READ_WRITE)
+	protected String portletId;
+
+	@Schema
 	public Boolean getReadOnly() {
 		return readOnly;
 	}
@@ -335,6 +363,20 @@ public class DataLayoutRenderingContext implements Serializable {
 			sb.append("\"");
 
 			sb.append(_escape(pathThemeImages));
+
+			sb.append("\"");
+		}
+
+		if (portletId != null) {
+			if (sb.length() > 1) {
+				sb.append(", ");
+			}
+
+			sb.append("\"portletId\": ");
+
+			sb.append("\"");
+
+			sb.append(_escape(portletId));
 
 			sb.append("\"");
 		}

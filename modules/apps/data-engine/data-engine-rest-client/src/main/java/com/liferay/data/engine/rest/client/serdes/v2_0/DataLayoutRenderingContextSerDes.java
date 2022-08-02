@@ -112,6 +112,20 @@ public class DataLayoutRenderingContextSerDes {
 			sb.append("\"");
 		}
 
+		if (dataLayoutRenderingContext.getPortletId() != null) {
+			if (sb.length() > 1) {
+				sb.append(", ");
+			}
+
+			sb.append("\"portletId\": ");
+
+			sb.append("\"");
+
+			sb.append(_escape(dataLayoutRenderingContext.getPortletId()));
+
+			sb.append("\"");
+		}
+
 		if (dataLayoutRenderingContext.getReadOnly() != null) {
 			if (sb.length() > 1) {
 				sb.append(", ");
@@ -202,6 +216,15 @@ public class DataLayoutRenderingContextSerDes {
 					dataLayoutRenderingContext.getPathThemeImages()));
 		}
 
+		if (dataLayoutRenderingContext.getPortletId() == null) {
+			map.put("portletId", null);
+		}
+		else {
+			map.put(
+				"portletId",
+				String.valueOf(dataLayoutRenderingContext.getPortletId()));
+		}
+
 		if (dataLayoutRenderingContext.getReadOnly() == null) {
 			map.put("readOnly", null);
 		}
@@ -272,6 +295,12 @@ public class DataLayoutRenderingContextSerDes {
 			else if (Objects.equals(jsonParserFieldName, "pathThemeImages")) {
 				if (jsonParserFieldValue != null) {
 					dataLayoutRenderingContext.setPathThemeImages(
+						(String)jsonParserFieldValue);
+				}
+			}
+			else if (Objects.equals(jsonParserFieldName, "portletId")) {
+				if (jsonParserFieldValue != null) {
+					dataLayoutRenderingContext.setPortletId(
 						(String)jsonParserFieldValue);
 				}
 			}
