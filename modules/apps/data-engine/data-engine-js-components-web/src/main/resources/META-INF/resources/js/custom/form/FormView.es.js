@@ -345,6 +345,7 @@ const usePublicAPI = ({apiRef, containerRef, unstable_onEventRef}) => {
 		updateEditingLanguageId: ({
 			defaultLanguageId: nextDefaultLanguageId = defaultLanguageId,
 			editingLanguageId: nextEditingLanguageId = '',
+			portletId = '',
 			preserveValue,
 		}) =>
 			dispatch(
@@ -353,6 +354,7 @@ const usePublicAPI = ({apiRef, containerRef, unstable_onEventRef}) => {
 					defaultLanguageId: nextDefaultLanguageId,
 					nextEditingLanguageId,
 					pages,
+					portletId,
 					portletNamespace,
 					preserveValue,
 					prevEditingLanguageId: editingLanguageId,
