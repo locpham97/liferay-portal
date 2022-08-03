@@ -63,14 +63,6 @@ public class LocalizableTextDDMFormFieldValueAccessorTest {
 				DDMFormValuesTestUtil.createDDMFormFieldValue(
 					"localizableText", localizedValue),
 				LocaleUtil.US));
-
-		localizedValue.addString(LocaleUtil.FRENCH, StringPool.SPACE);
-
-		Assert.assertTrue(
-			_localizableTextDDMFormFieldValueAccessor.isEmpty(
-				DDMFormValuesTestUtil.createDDMFormFieldValue(
-					"localizableText", localizedValue),
-				LocaleUtil.US));
 	}
 
 	@Test
