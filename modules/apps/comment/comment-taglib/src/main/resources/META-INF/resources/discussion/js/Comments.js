@@ -164,7 +164,7 @@ export default function Comments({
 			}
 		}
 
-		if (refreshPage) {
+		if (refreshPage || !portletDisplayId) {
 			window.location.reload();
 		}
 		else {
