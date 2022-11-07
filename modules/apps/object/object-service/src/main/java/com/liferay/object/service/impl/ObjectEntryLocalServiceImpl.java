@@ -1531,6 +1531,53 @@ public class ObjectEntryLocalServiceImpl
 		}
 	}
 
+	private Predicate _fillCustomFieldPredicate(
+		Column<?, Object> column, ObjectField objectField, String search) {
+
+		Predicate customFieldPredicate = null;
+		String businessType = _getBusinessType(objectField);
+
+		List<String> textInstances = new ArrayList<>();
+
+		textInstances.add(ObjectFieldConstants.BUSINESS_TYPE_TEXT);
+		textInstances.add(ObjectFieldConstants.BUSINESS_TYPE_LONG_TEXT);
+		textInstances.add(ObjectFieldConstants.BUSINESS_TYPE_RICH_TEXT);
+		textInstances.add(ObjectFieldConstants.BUSINESS_TYPE_TEXT);
+
+		List<String> numberInstances = new ArrayList<>();
+
+		numberInstances.add(ObjectFieldConstants.BUSINESS_TYPE_INTEGER);
+		numberInstances.add(ObjectFieldConstants.BUSINESS_TYPE_LONG_INTEGER);
+
+		List<String> doubleInstances = new ArrayList<>();
+
+		doubleInstances.add(ObjectFieldConstants.BUSINESS_TYPE_DECIMAL);
+		doubleInstances.add(ObjectFieldConstants.DB_TYPE_BIG_DECIMAL);
+		doubleInstances.add(
+			ObjectFieldConstants.BUSINESS_TYPE_PRECISION_DECIMAL);
+
+		if (textInstances.contains(businessType)) {
+			customFieldPredicate = column.like("%" + search + "%");
+		}
+		else if (numberInstances.contains(businessType)) {
+			long searchLong = GetterUtil.getLong(search);
+
+			if (searchLong != 0L) {
+				customFieldPredicate = column.eq(searchLong);
+			}
+		}
+		else if (doubleInstances.contains(businessType)) {
+			BigDecimal searchDecimal = BigDecimal.valueOf(
+				GetterUtil.getDouble(search));
+
+			if (searchDecimal.compareTo(BigDecimal.ZERO) != 0) {
+				customFieldPredicate = column.eq(searchDecimal);
+			}
+		}
+
+		return customFieldPredicate;
+	}
+
 	private Predicate _fillPredicate(
 			long objectDefinitionId, Predicate predicate, String search)
 		throws PortalException {
@@ -1539,9 +1586,8 @@ public class ObjectEntryLocalServiceImpl
 			return predicate;
 		}
 
-		List<ObjectField> objectFields =
-			_objectFieldPersistence.findByODI_DBT_I(
-				objectDefinitionId, "String", true);
+		List<ObjectField> objectFields = _objectFieldPersistence.findByODI_S(
+			objectDefinitionId, false);
 
 		if (objectFields.isEmpty()) {
 			return predicate;
@@ -1560,13 +1606,14 @@ public class ObjectEntryLocalServiceImpl
 				continue;
 			}
 
-			Predicate likePredicate = column.like("%" + search + "%");
+			Predicate customFieldPredicate = _fillCustomFieldPredicate(
+				(Column<?, Object>)column, objectField, search);
 
 			if (searchPredicate == null) {
-				searchPredicate = likePredicate;
+				searchPredicate = customFieldPredicate;
 			}
 			else {
-				searchPredicate = searchPredicate.or(likePredicate);
+				searchPredicate = searchPredicate.or(customFieldPredicate);
 			}
 		}
 
@@ -1582,6 +1629,10 @@ public class ObjectEntryLocalServiceImpl
 		}
 
 		return predicate.and(searchPredicate.withParentheses());
+	}
+
+	private String _getBusinessType(ObjectField objectField) {
+		return objectField.getBusinessType();
 	}
 
 	private DLFolder _getDLFolder(
