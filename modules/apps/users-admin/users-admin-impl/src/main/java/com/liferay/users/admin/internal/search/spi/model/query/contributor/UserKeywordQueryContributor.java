@@ -106,7 +106,8 @@ public class UserKeywordQueryContributor implements KeywordQueryContributor {
 	private WildcardQuery _getTrailingWildcardQuery(
 		String field, String value) {
 
-		return new WildcardQueryImpl(field, value + StringPool.STAR);
+		return new WildcardQueryImpl(
+			field, StringPool.STAR + value + StringPool.STAR);
 	}
 
 }
