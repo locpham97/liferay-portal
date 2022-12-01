@@ -14,10 +14,12 @@
 
 package com.liferay.document.library.taglib.internal.servlet;
 
+import com.liferay.document.library.kernel.exception.DuplicateFolderNameException;
 import com.liferay.document.library.kernel.model.DLVersionNumberIncrease;
 import com.liferay.document.library.kernel.service.DLAppService;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
@@ -224,6 +226,12 @@ public class RepositoryBrowserServlet extends HttpServlet {
 			_sendResponse(httpServletResponse, HttpServletResponse.SC_OK);
 		}
 		catch (PortalException portalException) {
+			if (portalException instanceof DuplicateFolderNameException) {
+				_sendError(httpServletResponse, portalException.getMessage());
+
+				return;
+			}
+
 			throw new ServletException(portalException);
 		}
 	}
@@ -296,6 +304,15 @@ public class RepositoryBrowserServlet extends HttpServlet {
 				_log.debug(portalException);
 			}
 		}
+	}
+
+	private void _sendError(
+			HttpServletResponse httpServletResponse, String error)
+		throws IOException {
+
+		JSONObject jsonObject = JSONUtil.put("error", error);
+
+		ServletResponseUtil.write(httpServletResponse, jsonObject.toString());
 	}
 
 	private void _sendResponse(
