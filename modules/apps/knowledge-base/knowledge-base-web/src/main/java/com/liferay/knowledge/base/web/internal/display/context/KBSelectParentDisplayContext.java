@@ -27,6 +27,7 @@ import com.liferay.knowledge.base.web.internal.security.permission.resource.KBAr
 import com.liferay.knowledge.base.web.internal.security.permission.resource.KBFolderPermission;
 import com.liferay.portal.kernel.dao.search.SearchContainer;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.portlet.LiferayPortletRequest;
 import com.liferay.portal.kernel.portlet.LiferayPortletResponse;
 import com.liferay.portal.kernel.portlet.PortletURLUtil;
@@ -66,6 +67,34 @@ public class KBSelectParentDisplayContext {
 			WebKeys.THEME_DISPLAY);
 
 		_initParentData();
+	}
+
+	public String getContentSelectionTitle() throws PortalException {
+		long kbFolderClassNameId = PortalUtil.getClassNameId(
+			KBFolderConstants.getClassName());
+		long contentSelectionId = getParentResourcePrimKey();
+
+		String contentSelectionTitle;
+
+		if (contentSelectionId == 0) {
+			contentSelectionTitle = LanguageUtil.get(
+				_httpServletRequest, "home");
+		}
+		else if (getParentResourceClassNameId() == kbFolderClassNameId) {
+			KBFolder kbParentFolder = KBFolderServiceUtil.getKBFolder(
+				contentSelectionId);
+
+			contentSelectionTitle = kbParentFolder.getName();
+		}
+		else {
+			KBArticle kbCurrentArticle =
+				KBArticleServiceUtil.getLatestKBArticle(
+					contentSelectionId, WorkflowConstants.STATUS_APPROVED);
+
+			contentSelectionTitle = kbCurrentArticle.getTitle();
+		}
+
+		return contentSelectionTitle;
 	}
 
 	public long getParentResourceClassNameId() {
