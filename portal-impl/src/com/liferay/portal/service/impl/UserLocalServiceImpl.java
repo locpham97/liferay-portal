@@ -360,6 +360,13 @@ public class UserLocalServiceImpl extends UserLocalServiceBaseImpl {
 				user.getCompanyId(), defaultGroupName);
 
 			if (group != null) {
+				if (group.isLimitedToParentSiteMembers() &&
+					!_groupLocalService.hasUserGroup(
+						userId, group.getParentGroupId(), true)) {
+
+					continue;
+				}
+
 				if (!ArrayUtil.contains(userGroupIds, group.getGroupId())) {
 					groupIdsSet.add(group.getGroupId());
 				}
