@@ -35,7 +35,7 @@ public class CETLabelUtil {
 			locale, "new-x", _getCETTypeLanguageKey(type));
 	}
 
-	public static String getTypeNameLabel(Locale locale, String type) {
+	public static String getTypeLabel(Locale locale, String type) {
 		return LanguageUtil.get(locale, _getCETTypeLanguageKey(type));
 	}
 
@@ -74,6 +74,11 @@ public class CETLabelUtil {
 					type, ClientExtensionEntryConstants.TYPE_THEME_JS)) {
 
 			return "theme-js";
+		}
+		else if (Objects.equals(
+					type, ClientExtensionEntryConstants.TYPE_THEME_SPRITEMAP)) {
+
+			return "theme-svg";
 		}
 
 		return type;

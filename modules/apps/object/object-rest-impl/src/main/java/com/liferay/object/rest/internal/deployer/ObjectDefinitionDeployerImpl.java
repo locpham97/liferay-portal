@@ -16,7 +16,9 @@ package com.liferay.object.rest.internal.deployer;
 
 import com.liferay.object.action.engine.ObjectActionEngine;
 import com.liferay.object.deployer.ObjectDefinitionDeployer;
+import com.liferay.object.exception.NoSuchObjectDefinitionException;
 import com.liferay.object.model.ObjectDefinition;
+import com.liferay.object.related.models.ObjectRelatedModelsProviderRegistry;
 import com.liferay.object.rest.dto.v1_0.ObjectEntry;
 import com.liferay.object.rest.internal.graphql.dto.v1_0.ObjectDefinitionGraphQLDTOContributor;
 import com.liferay.object.rest.internal.jaxrs.application.ObjectEntryApplication;
@@ -145,16 +147,23 @@ public class ObjectDefinitionDeployerImpl implements ObjectDefinitionDeployer {
 	}
 
 	public ObjectDefinition getObjectDefinition(
-		long companyId, String restContextPath) {
+			long companyId, String restContextPath)
+		throws Exception {
+
+		ObjectDefinition objectDefinition = null;
 
 		Map<Long, ObjectDefinition> objectDefinitions =
 			_objectDefinitionsMap.get(restContextPath);
 
 		if (objectDefinitions != null) {
-			return objectDefinitions.get(companyId);
+			objectDefinition = objectDefinitions.get(companyId);
 		}
 
-		return null;
+		if (objectDefinition == null) {
+			throw new NoSuchObjectDefinitionException();
+		}
+
+		return objectDefinition;
 	}
 
 	@Override
@@ -411,6 +420,7 @@ public class ObjectDefinitionDeployerImpl implements ObjectDefinitionDeployer {
 							return new ObjectEntryRelatedObjectsResourceImpl(
 								_objectDefinitionLocalService,
 								_objectEntryManagerRegistry,
+								_objectRelatedModelsProviderRegistry,
 								_objectRelationshipService);
 						}
 
@@ -585,6 +595,10 @@ public class ObjectDefinitionDeployerImpl implements ObjectDefinitionDeployer {
 
 	@Reference
 	private ObjectFieldLocalService _objectFieldLocalService;
+
+	@Reference
+	private ObjectRelatedModelsProviderRegistry
+		_objectRelatedModelsProviderRegistry;
 
 	@Reference
 	private ObjectRelationshipLocalService _objectRelationshipLocalService;

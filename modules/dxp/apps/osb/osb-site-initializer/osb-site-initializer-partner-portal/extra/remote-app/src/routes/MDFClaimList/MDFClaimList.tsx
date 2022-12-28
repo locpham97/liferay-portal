@@ -14,14 +14,17 @@ import ClayButton from '@clayui/button';
 import ClayIcon from '@clayui/icon';
 import ClayLoadingIndicator from '@clayui/loading-indicator';
 import {ClayPaginationBarWithBasicItems} from '@clayui/pagination-bar';
+import {CSVLink} from 'react-csv';
 
 import Dropdown from '../../common/components/Dropdown';
 import StatusBadge from '../../common/components/StatusBadge';
 import Table from '../../common/components/Table';
 import TableHeader from '../../common/components/TableHeader';
+import CheckboxFilter from '../../common/components/TableHeader/Filter/components/CheckboxFilter';
 import DropDownWithDrillDown from '../../common/components/TableHeader/Filter/components/DropDownWithDrillDown';
 import DateFilter from '../../common/components/TableHeader/Filter/components/filters/DateFilter';
 import Search from '../../common/components/TableHeader/Search';
+import {LiferayPicklistName} from '../../common/enums/liferayPicklistName';
 import {MDFClaimColumnKey} from '../../common/enums/mdfClaimColumnKey';
 import {Status} from '../../common/enums/status';
 import useLiferayNavigate from '../../common/hooks/useLiferayNavigate';
@@ -30,6 +33,7 @@ import {MDFClaimListItem} from '../../common/interfaces/mdfClaimListItem';
 import TableColumn from '../../common/interfaces/tableColumn';
 import {Liferay} from '../../common/services/liferay';
 import getDropDownFilterMenus from '../../common/utils/getDropDownFilterMenus';
+import useDynamicFieldEntries from './hooks/useDynamicFieldEntries';
 import useFilters from './hooks/useFilters';
 import useGetListItemsFromMDFClaims from './hooks/useGetListItemsFromMDFClaims';
 import {INITIAL_FILTER} from './utils/constants/initialFilter';
@@ -39,7 +43,9 @@ type MDFClaimItem = {
 };
 
 const MDFClaimList = () => {
-	const {filters, filtersTerm, onFilter} = useFilters();
+	const {companiesEntries, fieldEntries} = useDynamicFieldEntries();
+
+	const {filters, filtersTerm, onFilter, setFilters} = useFilters();
 
 	const pagination = usePagination();
 	const {data, isValidating} = useGetListItemsFromMDFClaims(
@@ -213,6 +219,72 @@ const MDFClaimList = () => {
 								),
 								name: 'Date Submitted',
 							},
+							{
+								component: (
+									<CheckboxFilter
+										availableItems={fieldEntries[
+											LiferayPicklistName.MDF_CLAIM_STATUS
+										]?.map<string>(
+											(status) => status.label as string
+										)}
+										clearCheckboxes={
+											!filters.status.value?.length
+										}
+										updateFilters={(checkedItems) =>
+											setFilters((previousFilters) => ({
+												...previousFilters,
+												status: {
+													...previousFilters.status,
+													value: checkedItems,
+												},
+											}))
+										}
+									/>
+								),
+								name: 'Status',
+							},
+							{
+								component: (
+									<CheckboxFilter
+										availableItems={companiesEntries?.map<
+											string
+										>((company) => company.label as string)}
+										clearCheckboxes={
+											!filters.partner.value?.length
+										}
+										updateFilters={(checkedItems) =>
+											setFilters((previousFilters) => ({
+												...previousFilters,
+												partner: {
+													...previousFilters.status,
+													value: checkedItems,
+												},
+											}))
+										}
+									/>
+								),
+								name: 'Partner',
+							},
+							{
+								component: (
+									<CheckboxFilter
+										availableItems={['Full', 'Partial']}
+										clearCheckboxes={
+											!filters.type.value?.length
+										}
+										updateFilters={(checkedItems) =>
+											setFilters((previousFilters) => ({
+												...previousFilters,
+												type: {
+													...previousFilters.type,
+													value: checkedItems,
+												},
+											}))
+										}
+									/>
+								),
+								name: 'Type',
+							},
 						])}
 						trigger={
 							<ClayButton borderless className="btn-secondary">
@@ -223,6 +295,18 @@ const MDFClaimList = () => {
 							</ClayButton>
 						}
 					/>
+				</div>
+
+				<div className="mb-2 mb-lg-0">
+					{!!data.items?.length && (
+						<CSVLink
+							className="btn btn-secondary mr-2"
+							data={data.items}
+							filename="MDF Claim.csv"
+						>
+							Export MDF Claim
+						</CSVLink>
+					)}
 				</div>
 			</TableHeader>
 

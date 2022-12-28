@@ -22,19 +22,15 @@ import DealRegistrationStepProps from '../../interfaces/dealRegistrationStepProp
 const Review = ({
 	onCancel,
 	onPrevious,
-	onSaveAsDraft,
 }: PRMFormikPageProps & DealRegistrationStepProps) => {
-	const {isSubmitting, values, ...formikHelpers} = useFormikContext<
-		DealRegistration
-	>();
+	const {isSubmitting, values} = useFormikContext<DealRegistration>();
 
 	return (
 		<>
 			<PRMForm
 				className="bg-neutral-0"
-				description="Lorem ipsum dolor sit amet, consectetur adipiscing elit ut aliquam, purus sit amet luctus"
 				name="review"
-				title="Review Opportunity Registration"
+				title="Review Deal Registration"
 			>
 				<Table
 					borderless
@@ -252,17 +248,6 @@ const Review = ({
 							onClick={() => onPrevious?.(StepType.GENERAL)}
 						>
 							Back
-						</Button>
-
-						<Button
-							className="pl-0"
-							disabled={isSubmitting}
-							displayType={null}
-							onClick={() =>
-								onSaveAsDraft?.(values, formikHelpers)
-							}
-						>
-							Save as Draft
 						</Button>
 					</div>
 

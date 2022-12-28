@@ -836,31 +836,59 @@ jdbc.counter.connectionProperties=oracle.jdbc.ReadTimeout=0;oracle.net.CONNECT_T
 
 	<macrodef name="get-host-git-dir">
 		<sequential>
-			<exec executable="/bin/bash" outputproperty="docker.mounts.json">
-				<arg value="-c" />
-				<arg value="docker inspect -f '{{json .Mounts }}' ${env.NODE_NAME}" />
-			</exec>
+			<if>
+				<isset property="env.NODE_NAME" />
+				<then>
+					<exec executable="/bin/bash" outputproperty="docker.mounts.json">
+						<arg value="-c" />
+						<arg value="docker inspect -f '{{json .Mounts }}' ${env.NODE_NAME}" />
+					</exec>
 
-			<beanshell>
-				<![CDATA[
-					import org.json.JSONArray;
-					import org.json.JSONObject;
+					<beanshell>
+						<![CDATA[
+							import org.json.JSONArray;
+							import org.json.JSONObject;
 
-					JSONArray jsonArray = new JSONArray(project.getProperty("docker.mounts.json"));
+							String dockerMountsJSONString = project.getProperty("docker.mounts.json");
 
-					for (int i = 0; i < jsonArray.length(); i++) {
-						JSONObject jsonObject = jsonArray.getJSONObject(i);
+							if (dockerMountsJSONString == null) {
+								return;
+							}
 
-						String destination = jsonObject.getString("Destination");
+							JSONArray jsonArray = new JSONArray(dockerMountsJSONString);
 
-						if (destination.equals("/opt/dev/projects/github")) {
-							project.setProperty("host.git.dir", jsonObject.getString("Source"));
+							for (int i = 0; i < jsonArray.length(); i++) {
+								JSONObject jsonObject = jsonArray.getJSONObject(i);
 
-							break;
-						}
-					}
-				]]>
-			</beanshell>
+								String destination = jsonObject.getString("Destination");
+
+								if (destination.equals("/opt/dev/projects/github")) {
+									project.setProperty("host.git.dir", jsonObject.getString("Source"));
+
+									break;
+								}
+							}
+						]]>
+					</beanshell>
+				</then>
+			</if>
+
+			<if>
+				<not>
+					<isset property="host.git.dir" />
+				</not>
+				<then>
+					<if>
+						<isset property="env.JENKINS_HOME" />
+						<then>
+							<fail message="Unable to get the host's git directory for container ${env.NODE_NAME}" />
+						</then>
+						<else>
+							<property location="${portal.dir}/.." name="host.git.dir" />
+						</else>
+					</if>
+				</then>
+			</if>
 		</sequential>
 	</macrodef>
 
@@ -1737,7 +1765,10 @@ jdbc.counter.connectionProperties=oracle.jdbc.ReadTimeout=0;oracle.net.CONNECT_T
 					</then>
 				</elseif>
 				<elseif>
-					<isset property="operating.system.docker.image" />
+					<and>
+						<isset property="env.JENKINS_HOME" />
+						<isset property="operating.system.docker.image" />
+					</and>
 					<then>
 						<get-operating-system-property property.name="operating.system.host" />
 
@@ -1778,6 +1809,22 @@ jdbc.counter.connectionProperties=oracle.jdbc.ReadTimeout=0;oracle.net.CONNECT_T
 				<isset property="portal.context" />
 				<then>
 					<var name="test.url" value="${test.url}/${portal.context}" />
+				</then>
+			</if>
+
+			<get-testcase-property property.name="portal.proxy.path" />
+
+			<if>
+				<isset property="portal.proxy.path" />
+				<then>
+					<propertyregex
+						input="${test.url}"
+						property="proxy.url"
+						regexp="(http:\/\/.*)(:[0-9][0-9])([0-9]+)"
+						select="\1\2"
+					/>
+
+					<var name="test.url" value="${proxy.url}/${portal.proxy.path}" />
 				</then>
 			</if>
 		</sequential>
@@ -3424,7 +3471,10 @@ tell application "Safari" to quit
 			<get-browser-property property.name="browser.docker.image" />
 
 			<if>
-				<isset property="browser.docker.image" />
+				<and>
+					<isset property="browser.docker.image" />
+					<isset property="env.JENKINS_HOME" />
+				</and>
 				<then>
 					<get-browser-property property.name="browser.host" />
 
@@ -6890,21 +6940,10 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 
 					<get-java-jdk-home type="${java.jdk.bundle.type}" version="${java.jdk.bundle.version}" />
 
-					<get-testcase-property property.name="ext.plugins.includes" />
-
 					<get-operating-system-property property.name="operating.system.docker.image" />
 
 					<parallel>
-						<if>
-							<not>
-								<isset property="ext.plugins.includes" />
-							</not>
-							<then>
-								<sequential>
-									<wait-for-app-server app.server.bin.dir="@{app.server.bin.dir}" app.server.bundle.index="@{app.server.bundle.index}" />
-								</sequential>
-							</then>
-						</if>
+						<wait-for-app-server app.server.bin.dir="@{app.server.bin.dir}" app.server.bundle.index="@{app.server.bundle.index}" />
 
 						<daemons>
 							<if>
@@ -6971,14 +7010,41 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 				select="\1"
 			/>
 
-			<get-host-git-dir />
+			<local name="ip.address" />
 
-			<get-ip-address />
+			<if>
+				<isset property="env.JENKINS_HOME" />
+				<then>
+					<get-ip-address />
+				</then>
+				<else>
+					<get-operating-system-property property.name="operating.system.host" />
+
+					<exec executable="/bin/bash" outputproperty="ip.address">
+						<arg value="-c" />
+						<arg value="docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${operating.system.host}" />
+					</exec>
+				</else>
+			</if>
+
+			<local name="docker.add.host.hostname.arg" />
+			<local name="docker.add.host.node.name.arg" />
+			<local name="host.git.dir" />
+
+			<condition else="" property="docker.add.host.hostname.arg" value="--add-host ${env.HOSTNAME}:${ip.address}">
+				<isset property="env.HOSTNAME" />
+			</condition>
+
+			<condition else="" property="docker.add.host.node.name.arg" value="--add-host ${env.NODE_NAME}:${ip.address}">
+				<isset property="env.NODE_NAME" />
+			</condition>
+
+			<get-host-git-dir />
 
 			<start-docker-container image="${browser.docker.image}" name="${browser.host}" options="${browser.docker.browser.options}">\
 				${browser.docker.run.options} \
-				--add-host ${env.HOSTNAME}:${ip.address} \
-				--add-host ${env.NODE_NAME}:${ip.address} \
+				${docker.add.host.hostname.arg} \
+				${docker.add.host.node.name.arg} \
 				--add-host www.able.com:${ip.address} \
 				--add-host www.baker.com:${ip.address} \
 				--add-host www.charlie.com:${ip.address} \
@@ -6988,13 +7054,7 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 				--mount type=bind,source=${host.git.dir}/${portal.dir.name},target=${portal.dir} \
 			</start-docker-container>
 
-			<echo>Waiting for ${browser.host}:4444 to load</echo>
-
-			<waitfor maxwait="300" maxwaitunit="second">
-				<socket port="4444" server="${browser.host}" />
-			</waitfor>
-
-			<docker-copy dest.path="${browser.host}:/root/.ssh" src.path="/root/.ssh/." />
+			<wait-for-docker-browser shell.condition="(: &lt;/dev/tcp/127.0.0.1/4444) &amp;> /dev/null &amp;&amp; (: &lt;/dev/tcp/127.0.0.1/22) &amp;> /dev/null" />
 
 			<docker-execute container="${browser.host}">
 				ssh -fN -4 -L 8080:${ip.address}:8080 ${browser.host}
@@ -7056,21 +7116,28 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 			</chmod>
 
 			<local name="docker.start.error" />
+			<local name="docker.start.output" />
+			<local name="docker.start.result" />
 
-			<exec errorproperty="docker.start.error" executable="/bin/bash" os="${os.apple},${os.unix}">
+			<exec errorproperty="docker.start.error" executable="/bin/bash" os="${os.apple},${os.unix}" outputproperty="docker.start.output" resultproperty="docker.start.result">
 				<arg value="${docker.start.script}" />
 			</exec>
 
-			<exec errorproperty="docker.start.error" executable="cmd.exe" os="${os.windows}">
+			<exec errorproperty="docker.start.error" executable="cmd.exe" os="${os.windows}" outputproperty="docker.start.output" resultproperty="docker.start.result">
 				<arg value="${docker.start.script}" />
 			</exec>
 
 			<if>
-				<contains string="${docker.start.error}" substring="repository does not exist or may require 'docker login': denied: requested access to the resource is denied." />
+				<not>
+					<equals arg1="${docker.start.result}" arg2="0" />
+				</not>
 				<then>
-					<fail>Unable to start docker container: ${docker.start.error}</fail>
+					<fail>Unable to start docker container:
+${docker.start.error}</fail>
 				</then>
 			</if>
+
+			<echo>${docker.start.output}</echo>
 
 			<delete file="${docker.start.script}" />
 		</sequential>
@@ -7106,6 +7173,7 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 			<property name="database.docker.database.options" value="" />
 			<property name="database.docker.run.options" value="" />
 
+			<get-testcase-property property.name="data.archive.type" />
 			<get-testcase-property property.name="database.lowercase.enabled" />
 
 			<if>
@@ -7116,6 +7184,12 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 				<then>
 					<var name="database.docker.database.options.new" value="${database.docker.database.options} --lower_case_table_names=1" />
 				</then>
+				<elseif>
+					<contains string="${data.archive.type}" substring="partition-large" />
+					<then>
+						<var name="database.docker.database.options.new" value="${database.docker.database.options} --character-set-server=utf8mb4 --innodb_buffer_pool_size=4G --innodb_log_buffer_size=256M --innodb_log_file_size=1G --innodb_write_io_threads=16 --innodb_flush_log_at_trx_commit=0 --innodb-doublewrite=0" />
+					</then>
+				</elseif>
 				<else>
 					<var name="database.docker.database.options.new" value="${database.docker.database.options}" />
 				</else>
@@ -7224,15 +7298,6 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 			/>
 
 			<get-host-git-dir />
-
-			<if>
-				<not>
-					<isset property="host.git.dir" />
-				</not>
-				<then>
-					<fail message="Unable to get mount 'host.git.dir' for ${operating.system.host}" />
-				</then>
-			</if>
 
 			<start-docker-container image="${operating.system.docker.image}" name="${operating.system.host}" options="${operating.system.docker.os.options}">\
 				--mount type=bind,source=${host.git.dir}/${portal.dir.name},target=${portal.dir} \
@@ -7410,6 +7475,7 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 
 									<get-operating-system-property property.name="operating.system.docker.image" />
 									<get-testcase-property property.name="portal.context" />
+									<get-testcase-property property.name="portal.proxy.path" />
 
 									<if>
 										<isset property="portal.context" />
@@ -7417,7 +7483,16 @@ org.apache.catalina.startup.ClassLoaderFactory.level=INFO]]>
 											<property name="app.server.waiting.url" value="http://localhost:${test.app.server.leading.port.number}080/${portal.context}/web/guest" />
 										</then>
 										<elseif>
-											<isset property="operating.system.docker.image" />
+											<isset property="portal.proxy.path" />
+											<then>
+												<property name="app.server.waiting.url" value="http://localhost:${test.app.server.leading.port.number}0/${portal.proxy.path}/web/guest" />
+											</then>
+										</elseif>
+										<elseif>
+											<and>
+												<isset property="env.JENKINS_HOME" />
+												<isset property="operating.system.docker.image" />
+											</and>
 											<then>
 												<get-operating-system-property property.name="operating.system.host" />
 
@@ -8016,12 +8091,19 @@ war.path=${app.server.portal.dir}/</echo>
 
 			<get-operating-system-property property.name="operating.system.docker.image" />
 			<get-testcase-property property.name="portal.context" />
+			<get-testcase-property property.name="portal.proxy.path" />
 
 			<if>
 				<isset property="portal.context" />
 				<then>
 					<property name="app.server.waiting.url" value="http://localhost:${test.app.server.leading.port.number}080/${portal.context}/web/guest" />
 				</then>
+				<elseif>
+					<isset property="portal.proxy.path" />
+					<then>
+						<property name="app.server.waiting.url" value="http://localhost:${test.app.server.leading.port.number}0/${portal.proxy.path}/web/guest" />
+					</then>
+				</elseif>
 				<elseif>
 					<isset property="operating.system.docker.image" />
 					<then>
@@ -8088,6 +8170,18 @@ war.path=${app.server.portal.dir}/</echo>
 				<then>
 					<local name="wait.for.app.server.log.timed.out.message" />
 
+					<get-testcase-property property.name="custom.startup.timeout" />
+
+					<if>
+						<isset property="custom.startup.timeout" />
+						<then>
+							<property name="timeout.app.server.wait.final" value="${custom.startup.timeout}" />
+						</then>
+						<else>
+							<property name="timeout.app.server.wait.final" value="${timeout.app.server.wait}" />
+						</else>
+					</if>
+
 					<beanshell>
 						<![CDATA[
 							import java.nio.file.Files;
@@ -8134,7 +8228,7 @@ war.path=${app.server.portal.dir}/</echo>
 
 							System.out.println("Waiting for server startup message");
 
-							int timeout = Integer.parseInt(project.getProperty("timeout.app.server.wait"));
+							int timeout = Integer.parseInt(project.getProperty("timeout.app.server.wait.final"));
 
 							int second = 0;
 
@@ -8263,6 +8357,32 @@ war.path=${app.server.portal.dir}/</echo>
 					<fail message="${timed.out.message}" />
 				</then>
 			</if>
+		</sequential>
+	</macrodef>
+
+	<macrodef name="wait-for-docker-browser">
+		<attribute name="shell.condition" />
+
+		<sequential>
+			<property location="setup.sh" name="setup.sh.file" />
+
+			<get-browser-property property.name="browser.host" />
+			<get-browser-property property.name="browser.name" />
+			<get-browser-property property.name="browser.version" />
+
+			<docker-execute container="${browser.host}">
+				<![CDATA[
+					#!/bin/bash
+
+					until @{shell.condition}
+
+					do
+						echo "Waiting for ${browser.name} ${browser.version} to be ready"
+
+						sleep 10
+					done
+				]]>
+			</docker-execute>
 		</sequential>
 	</macrodef>
 
@@ -9175,6 +9295,10 @@ org.apache.catalina.tribes.level = FINE]]>
 		</if>
 	</target>
 
+	<target name="create-symbolic-link">
+		<symlink link="${symbolic.link}" resource="${symbolic.link.resource}" />
+	</target>
+
 	<target name="curl-execute">
 		<fail message="Please set the property ${curl.args}." unless="curl.args" />
 
@@ -9969,18 +10093,6 @@ virtualHostname="localhost"
 		<!--
 		Deploy plugin files to the deploy directory.
 		-->
-
-		<get-testcase-property property.name="ext.plugins.includes" />
-
-		<if>
-			<isset property="ext.plugins.includes" />
-			<then>
-				<ant antfile="build-test-plugins.xml" target="deploy-simple-server-plugins">
-					<property name="plugin.types" value="ext" />
-					<property name="plugins.includes" value="${ext.plugins.includes}" />
-				</ant>
-			</then>
-		</if>
 
 		<get-testcase-property property.name="hook.plugins.includes" />
 
@@ -11131,6 +11243,8 @@ enterprise.product.notification.enabled=false
 
 company.security.strangers.verify=false
 
+default.admin.password=test
+
 browser.launcher.url=
 
 setup.wizard.enabled=false
@@ -11320,8 +11434,23 @@ cluster.link.bind.addr["cluster-link-udp"]=${ip.address}</echo>
 			<equals arg1="${database.partition.enabled}" arg2="true" />
 			<then>
 				<echo append="true" file="portal-impl/src/portal-ext.properties">
-
 database.partition.enabled=true</echo>
+
+				<get-testcase-property property.name="data.archive.type" />
+
+				<if>
+					<contains string="${data.archive.type}" substring="partition-large" />
+					<then>
+						<echo append="true" file="portal-impl/src/portal-ext.properties">
+locales=es_ES,en_US,en_GB
+locales.enabled=es_ES,en_US,en_GB
+admin.default.role.names=User
+layout.user.public.layouts.power.user.required=true
+layout.user.private.layouts.power.user.required=true
+passwords.encryption.algorithm.legacy=SHA
+company.default.web.id=www.able.com</echo>
+					</then>
+				</if>
 			</then>
 		</if>
 
@@ -11502,6 +11631,23 @@ session.cookie.use.full.hostname=true
 				<replace
 					file="portal-impl/src/portal-ext.properties"
 					token="permissions.view.dynamic.inheritance=false"
+					value=""
+				/>
+			</then>
+		</if>
+
+		<get-testcase-property property.name="portal.proxy.path" />
+
+		<if>
+			<isset property="portal.proxy.path" />
+			<then>
+				<echo append="true" file="portal-impl/src/portal-ext.properties">
+
+portal.proxy.path=/${portal.proxy.path}</echo>
+
+				<replace
+					file="portal-impl/src/portal-ext.properties"
+					token="web.server.http.port=8080"
 					value=""
 				/>
 			</then>
@@ -11819,6 +11965,7 @@ auto.deploy.dest.dir=C:/WINDOWS/system32/config/systemprofile/liferay/websphere-
 
 		<echo append="true" file="${test.ext.properties.file}">
 			app.server.bin.dir=${app.server.bin.dir}
+			app.server.dir=${app.server.dir}
 			app.server.temp.dir=${app.server.tomcat.temp.dir}
 			app.server.type=${app.server.type}
 			component.names=${component.names}
@@ -12304,7 +12451,10 @@ auto.deploy.dest.dir=C:/WINDOWS/system32/config/systemprofile/liferay/websphere-
 		<get-operating-system-property property.name="operating.system.docker.image" />
 
 		<if>
-			<isset property="operating.system.docker.image" />
+			<and>
+				<isset property="env.JENKINS_HOME" />
+				<isset property="operating.system.docker.image" />
+			</and>
 			<then>
 				<get-operating-system-property property.name="operating.system.host.alias" />
 
@@ -12456,13 +12606,24 @@ auto.deploy.dest.dir=C:/WINDOWS/system32/config/systemprofile/liferay/websphere-
 			</then>
 		</if>
 
+		<get-testcase-property property.name="ci.retries.disabled" />
+		<get-testcase-property property.name="test.jvm.max.retries" />
+
 		<if>
-			<isset property="test.jvm.max.retries" />
+			<equals arg1="${ci.retries.disabled}" arg2="true" />
 			<then>
 				<echo append="true" file="${test.ext.properties.file}">
-					test.jvm.max.retries=${test.jvm.max.retries}
+					test.jvm.max.retries=0
 				</echo>
 			</then>
+			<elseif>
+				<isset property="test.jvm.max.retries" />
+				<then>
+					<echo append="true" file="${test.ext.properties.file}">
+						test.jvm.max.retries=${test.jvm.max.retries}
+					</echo>
+				</then>
+			</elseif>
 		</if>
 
 		<if>
@@ -12483,13 +12644,24 @@ auto.deploy.dest.dir=C:/WINDOWS/system32/config/systemprofile/liferay/websphere-
 			</then>
 		</if>
 
+		<get-testcase-property property.name="ci.retries.disabled" />
+		<get-testcase-property property.name="test.testcase.max.retries" />
+
 		<if>
-			<isset property="test.testcase.max.retries" />
+			<equals arg1="${ci.retries.disabled}" arg2="true" />
 			<then>
 				<echo append="true" file="${test.ext.properties.file}">
-					test.testcase.max.retries=${test.testcase.max.retries}
+					test.testcase.max.retries=0
 				</echo>
 			</then>
+			<elseif>
+				<isset property="test.testcase.max.retries" />
+				<then>
+					<echo append="true" file="${test.ext.properties.file}">
+						test.testcase.max.retries=${test.testcase.max.retries}
+					</echo>
+				</then>
+			</elseif>
 		</if>
 	</target>
 
@@ -13266,10 +13438,26 @@ cluster.link.bind.addr["cluster-link-udp"]=127.0.0.1</echo>
 
 		<delete dir="${liferay.home}/data/elasticsearch7" />
 
-		<unzip
-			dest="${liferay.home}"
-			src="${portal.legacy.dir}/${portal.version}/data-archive/${data.archive.type}-${database.type}.zip"
-		/>
+		<if>
+			<contains string="${data.archive.type}" substring="partition-large" />
+			<then>
+				<mirrors-get
+					dest="${liferay.home}"
+					src="http://files.liferay.com/mirrors/data-archive-portal-partition-large.zip"
+				/>
+
+				<unzip
+					dest="${liferay.home}"
+					src="${liferay.home}/data-archive-portal-partition-large.zip"
+				/>
+			</then>
+			<else>
+				<unzip
+					dest="${liferay.home}"
+					src="${portal.legacy.dir}/${portal.version}/data-archive/${data.archive.type}-${database.type}.zip"
+				/>
+			</else>
+		</if>
 
 		<get-testcase-property property.name="database.partition.enabled" />
 
@@ -13278,6 +13466,22 @@ cluster.link.bind.addr["cluster-link-udp"]=127.0.0.1</echo>
 			<then>
 				<echo append="true" file="${liferay.home}/tools/portal-tools-db-upgrade-client/portal-upgrade-ext.properties">
 database.partition.enabled=true</echo>
+
+				<get-testcase-property property.name="data.archive.type" />
+
+				<if>
+					<contains string="${data.archive.type}" substring="partition-large" />
+					<then>
+						<echo append="true" file="${liferay.home}/tools/portal-tools-db-upgrade-client/portal-upgrade-ext.properties">
+locales=es_ES,en_US,en_GB
+locales.enabled=es_ES,en_US,en_GB
+admin.default.role.names=User
+layout.user.public.layouts.power.user.required=true
+layout.user.private.layouts.power.user.required=true
+passwords.encryption.algorithm.legacy=SHA
+company.default.web.id=www.able.com</echo>
+					</then>
+				</if>
 			</then>
 		</if>
 
@@ -14501,6 +14705,17 @@ mail.send.blacklist=</echo>
 			</then>
 		</if>
 
+		<get-testcase-property property.name="portal.proxy.path" />
+
+		<if>
+			<isset property="portal.proxy.path" />
+			<then>
+				<ant antfile="build-test-httpd.xml" target="configure-httpd-server" />
+
+				<ant antfile="build-test-httpd.xml" target="start-httpd-server" />
+			</then>
+		</if>
+
 		<get-testcase-property property.name="portal.ssl.enabled" />
 
 		<if>
@@ -15313,6 +15528,15 @@ url=${short.hostname}:8080</echo>
 			</then>
 		</if>
 
+		<get-testcase-property property.name="portal.proxy.path" />
+
+		<if>
+			<isset property="portal.proxy.path" />
+			<then>
+				<ant antfile="build-test-httpd.xml" target="stop-httpd-server" />
+			</then>
+		</if>
+
 		<get-testcase-property property.name="openam.enabled" />
 
 		<if>
@@ -15422,6 +15646,10 @@ url=${short.hostname}:8080</echo>
 			delete.liferay.home="false"
 			testable.portal.started.marker.file="${testable.portal.started.marker.file}"
 		/>
+	</target>
+
+	<target name="start-docker-browser">
+		<start-docker-browser />
 	</target>
 
 	<target name="start-docker-containers">
@@ -15896,6 +16124,10 @@ url=${short.hostname}:8080</echo>
 		</if>
 	</target>
 
+	<target name="start-docker-os">
+		<start-docker-os />
+	</target>
+
 	<target name="start-test-smtp-server">
 		<start-test-smtp-server />
 	</target>
@@ -15913,6 +16145,10 @@ url=${short.hostname}:8080</echo>
 		<stop-app-server
 			app.server.bundle.index="${app.server.bundle.index}"
 		/>
+	</target>
+
+	<target name="stop-docker-browser">
+		<stop-docker-browser />
 	</target>
 
 	<target name="stop-docker-containers">
@@ -15946,6 +16182,10 @@ url=${short.hostname}:8080</echo>
 
 	<target name="stop-docker-database">
 		<stop-docker-database />
+	</target>
+
+	<target name="stop-docker-os">
+		<stop-docker-os />
 	</target>
 
 	<target name="test-package">

@@ -22,24 +22,35 @@ import {
 	APIResponse,
 	TestraySubTask,
 	TestrayTask,
+	liferayMessageBoardImpl,
 	testraySubTaskImpl,
 } from '../../../services/rest';
 import {testraySubtaskIssuesImpl} from '../../../services/rest/TestraySubtaskIssues';
 import {searchUtil} from '../../../util/search';
 
 type OutletContext = {
-	testrayTask: TestrayTask;
+	data: {
+		testrayTask: TestrayTask;
+	};
+	revalidate: {
+		revalidateTaskUser: () => void;
+	};
 };
 
 const SubtaskOutlet = () => {
 	const {setHeading} = useHeader();
 	const {subtaskId} = useParams();
-	const {testrayTask} = useOutletContext<OutletContext>();
+	const {
+		data: {testrayTask},
+	} = useOutletContext<OutletContext>();
 
-	const {data: testraySubtask, mutate: mutateSubtask} = useFetch<
-		TestraySubTask
-	>(testraySubTaskImpl.getResource(subtaskId as string), (response) =>
-		testraySubTaskImpl.transformData(response)
+	const {
+		data: testraySubtask,
+		mutate: mutateSubtask,
+		revalidate: revalidateSubtask,
+	} = useFetch<TestraySubTask>(
+		testraySubTaskImpl.getResource(subtaskId as string),
+		(response) => testraySubTaskImpl.transformData(response)
 	);
 
 	const {data: testraySubtaskToMerged} = useFetch<
@@ -60,9 +71,29 @@ const SubtaskOutlet = () => {
 		(response) => testraySubtaskIssuesImpl.transformDataFromList(response)
 	);
 
+	const {data: mbMessage} = useFetch(
+		testraySubtask?.mbMessageId
+			? liferayMessageBoardImpl.getMessagesIdURL(
+					testraySubtask.mbMessageId
+			  )
+			: null
+	);
+
+	const {data: testraySubtaskToSplit} = useFetch<APIResponse<TestraySubTask>>(
+		`${testraySubTaskImpl.resource}&filter=${searchUtil.eq(
+			'r_splitFromTestraySubtask_c_subtaskId',
+			subtaskId as string
+		)}&pageSize=100&fields=name`,
+		(response) => testraySubTaskImpl.transformDataFromList(response)
+	);
+
 	const subtaskIssues = data?.items || [];
 
 	const mergedSubtaskNames = (testraySubtaskToMerged?.items || [])
+		.map(({name}) => name)
+		.join(', ');
+
+	const splitSubtaskNames = (testraySubtaskToSplit?.items || [])
 		.map(({name}) => name)
 		.join(', ');
 
@@ -72,7 +103,7 @@ const SubtaskOutlet = () => {
 				setHeading([
 					{
 						category: i18n.translate('task'),
-						path: `/testflow/${testrayTask.id}`,
+						path: `/testflow/${testrayTask?.id}`,
 						title: testrayTask.name,
 					},
 					{
@@ -87,12 +118,21 @@ const SubtaskOutlet = () => {
 	return (
 		<Outlet
 			context={{
-				mergedSubtaskNames,
-				mutateSubtask,
-				mutateSubtaskIssues,
-				subtaskIssues,
-				testraySubtask,
-				testrayTask,
+				data: {
+					mbMessage,
+					mergedSubtaskNames,
+					splitSubtaskNames,
+					subtaskIssues,
+					testraySubtask,
+					testrayTask,
+				},
+				mutate: {
+					mutateSubtask,
+					mutateSubtaskIssues,
+				},
+				revalidate: {
+					revalidateSubtask,
+				},
 			}}
 		/>
 	);

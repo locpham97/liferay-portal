@@ -60,9 +60,6 @@ const CaseResultHeaderActions: React.FC<{
 			caseResult.dueStatus.key !== CaseResultStatuses.IN_PROGRESS,
 		editValidation: assignedUserId > 0 && assignedUserId !== userId,
 		reopenTest: workflowDisabled || isReopened,
-		startTest:
-			workflowDisabled ||
-			caseResult.dueStatus.key !== CaseResultStatuses.UNTESTED,
 	};
 
 	return (
@@ -81,7 +78,10 @@ const CaseResultHeaderActions: React.FC<{
 				</ClayButton>
 
 				<ClayButton
-					displayType="secondary"
+					disabled={isCaseResultAssignedToMe}
+					displayType={
+						isCaseResultAssignedToMe ? 'unstyled' : 'secondary'
+					}
 					onClick={() =>
 						(isCaseResultAssignedToMe
 							? testrayCaseResultImpl.removeAssign(caseResult)
@@ -96,12 +96,7 @@ const CaseResultHeaderActions: React.FC<{
 					)}
 				</ClayButton>
 
-				<ClayButton
-					disabled={buttonValidations.startTest}
-					displayType={
-						buttonValidations.startTest ? 'unstyled' : 'primary'
-					}
-				>
+				<ClayButton disabled displayType="unstyled">
 					{i18n.translate('start-test')}
 				</ClayButton>
 
@@ -130,9 +125,13 @@ const CaseResultHeaderActions: React.FC<{
 				</ClayButton>
 
 				<ClayButton
-					disabled={buttonValidations.editValidation}
+					disabled={
+						buttonValidations.editValidation ||
+						isCaseResultAssignedToMe
+					}
 					displayType={
-						buttonValidations.editValidation
+						buttonValidations.editValidation ||
+						isCaseResultAssignedToMe
 							? 'unstyled'
 							: 'secondary'
 					}

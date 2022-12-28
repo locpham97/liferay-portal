@@ -276,6 +276,12 @@ definition {
 		Click(
 			key_picklistOption = "${entryOption}",
 			locator1 = "ObjectAdmin#ENTRY_PICKLIST_OPTION");
+
+		if (IsElementPresent(key_feedbackMessage = "The field value is invalid.", locator1 = "Form#FEEDBACK_MESSAGE")) {
+			WaitForElementNotPresent(
+				key_feedbackMessage = "The field value is invalid.",
+				locator1 = "Form#FEEDBACK_MESSAGE");
+		}
 	}
 
 	macro chooseEntryOnRelationshipFieldSpecific {
@@ -292,9 +298,17 @@ definition {
 			key_picklistOption = "${entryOption}",
 			locator1 = "ObjectAdmin#ENTRY_PICKLIST_OPTION");
 
+		if (IsElementPresent(key_feedbackMessage = "The field value is invalid.", locator1 = "Form#FEEDBACK_MESSAGE")) {
+			WaitForElementNotPresent(
+				key_feedbackMessage = "The field value is invalid.",
+				locator1 = "Form#FEEDBACK_MESSAGE");
+		}
+
 		Button.clickSave();
 
 		WaitForSPARefresh();
+
+		Navigator.gotoBack();
 	}
 
 	macro deleteEntry {
@@ -348,7 +362,9 @@ definition {
 	}
 
 	macro selectCustomObject {
-		WaitForElementPresent(
+		SelectFrame(locator1 = "ObjectPortlet#SELECT_FRAME_OBJECT");
+
+		WaitForVisible(
 			key_label = "${label}",
 			locator1 = "ObjectPortlet#SELECT_CUSTOM_OBJECT");
 
@@ -454,6 +470,8 @@ definition {
 		var key_entry = "${entry}";
 
 		SelectFrameTop();
+
+		WaitForVisible(locator1 = "CommerceEntry#PAGINATION_RESULTS");
 
 		if (IsElementPresent(locator1 = "ObjectPortlet#ENTRY_KEBAB_MENU")) {
 			Click(locator1 = "ObjectPortlet#ENTRY_KEBAB_MENU");

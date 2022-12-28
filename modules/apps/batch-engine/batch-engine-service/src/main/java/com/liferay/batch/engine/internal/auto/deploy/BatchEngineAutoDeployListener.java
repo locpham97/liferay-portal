@@ -30,8 +30,14 @@ import com.liferay.portal.kernel.deploy.auto.AutoDeployException;
 import com.liferay.portal.kernel.deploy.auto.AutoDeployListener;
 import com.liferay.portal.kernel.deploy.auto.AutoDeployer;
 import com.liferay.portal.kernel.deploy.auto.context.AutoDeploymentContext;
+import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.model.Company;
+import com.liferay.portal.kernel.service.CompanyLocalService;
+import com.liferay.portal.kernel.service.UserLocalService;
+import com.liferay.portal.kernel.util.PropsKeys;
+import com.liferay.portal.kernel.util.PropsUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 
@@ -159,7 +165,22 @@ public class BatchEngineAutoDeployListener implements AutoDeployListener {
 		for (BatchEngineZipUnit batchEngineZipUnit :
 				_getBatchEngineZipUnits(zipFile)) {
 
-			_processBatchEngineZipUnit(batchEngineZipUnit);
+			try {
+				_processBatchEngineZipUnit(batchEngineZipUnit);
+
+				if (_log.isInfoEnabled()) {
+					_log.info(
+						"Successfully enqueued batch file " +
+							batchEngineZipUnit);
+				}
+			}
+			catch (Exception exception) {
+				if (_log.isDebugEnabled()) {
+					_log.debug(
+						"Ignoring invalid batch file " + batchEngineZipUnit,
+						exception);
+				}
+			}
 		}
 	}
 
@@ -168,8 +189,43 @@ public class BatchEngineAutoDeployListener implements AutoDeployListener {
 				batchEngineZipUnit)
 		throws IOException {
 
-		return batchEngineZipUnit.getBatchEngineConfiguration(
-			BatchEngineImportConfiguration.class);
+		BatchEngineImportConfiguration batchEngineConfiguration =
+			batchEngineZipUnit.getBatchEngineConfiguration(
+				BatchEngineImportConfiguration.class);
+
+		if (batchEngineConfiguration.companyId == 0) {
+			if (_log.isWarnEnabled()) {
+				_log.warn("Using default company ID for this batch process");
+			}
+
+			try {
+				Company company = _companyLocalService.getCompanyByWebId(
+					PropsUtil.get(PropsKeys.COMPANY_DEFAULT_WEB_ID));
+
+				batchEngineConfiguration.companyId = company.getCompanyId();
+			}
+			catch (PortalException portalException) {
+				_log.error("Unable to get default company ID", portalException);
+			}
+		}
+
+		if (batchEngineConfiguration.userId == 0) {
+			if (_log.isWarnEnabled()) {
+				_log.warn("Using default user ID for this batch process");
+			}
+
+			try {
+				batchEngineConfiguration.userId =
+					_userLocalService.getUserIdByScreenName(
+						batchEngineConfiguration.companyId,
+						PropsUtil.get(PropsKeys.DEFAULT_ADMIN_SCREEN_NAME));
+			}
+			catch (PortalException portalException) {
+				_log.error("Unable to get default user ID", portalException);
+			}
+		}
+
+		return batchEngineConfiguration;
 	}
 
 	private String _getBatchEngineZipEntryKey(ZipEntry zipEntry) {
@@ -248,9 +304,8 @@ public class BatchEngineAutoDeployListener implements AutoDeployListener {
 		String contentType = null;
 
 		if (batchEngineZipUnit.isValid()) {
-			batchEngineImportConfiguration =
-				batchEngineZipUnit.getBatchEngineConfiguration(
-					BatchEngineImportConfiguration.class);
+			batchEngineImportConfiguration = _getBatchEngineImportConfiguration(
+				batchEngineZipUnit);
 
 			UnsyncByteArrayOutputStream compressedUnsyncByteArrayOutputStream =
 				new UnsyncByteArrayOutputStream();
@@ -321,10 +376,16 @@ public class BatchEngineAutoDeployListener implements AutoDeployListener {
 		_batchEngineImportTaskLocalService;
 
 	@Reference
+	private CompanyLocalService _companyLocalService;
+
+	@Reference
 	private com.liferay.portal.kernel.util.File _file;
 
 	@Reference
 	private PortalExecutorManager _portalExecutorManager;
+
+	@Reference
+	private UserLocalService _userLocalService;
 
 	private class BatchEngineZipUnitIterator
 		implements Iterator<BatchEngineZipUnit> {

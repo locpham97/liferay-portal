@@ -27,6 +27,7 @@ import QATable from '../../../components/Table/QATable';
 import {ApplicationPropertiesContext} from '../../../context/ApplicationPropertiesContext';
 import i18n from '../../../i18n';
 import {
+	MessageBoardMessage,
 	TestraySubTask,
 	TestraySubTaskIssue,
 	TestrayTask,
@@ -37,22 +38,31 @@ import SubtasksCaseResults from './SubtaskCaseResults';
 import SubtaskHeaderActions from './SubtaskHeaderActions';
 
 type OutletContext = {
-	mergedSubtaskNames: string;
-	mutateSubtask: KeyedMutator<TestraySubTask>;
-	mutateSubtaskIssues: KeyedMutator<TestraySubTask>;
-	subtaskIssues: TestraySubTaskIssue[];
-	testraySubtask: TestraySubTask;
-	testrayTask: TestrayTask;
+	data: {
+		mbMessage: MessageBoardMessage;
+		mergedSubtaskNames: string;
+		splitSubtaskNames: string;
+		subtaskIssues: TestraySubTaskIssue[];
+		testraySubtask: TestraySubTask;
+		testrayTask: TestrayTask;
+	};
+	mutate: {
+		mutateSubtask: KeyedMutator<TestraySubTask>;
+	};
 };
 
 const Subtasks = () => {
 	const {jiraBaseURL} = useContext(ApplicationPropertiesContext);
 
 	const {
-		mergedSubtaskNames,
-		mutateSubtask,
-		subtaskIssues,
-		testraySubtask,
+		data: {
+			mbMessage,
+			mergedSubtaskNames,
+			splitSubtaskNames,
+			subtaskIssues,
+			testraySubtask,
+		},
+		mutate: {mutateSubtask},
 	} = useOutletContext<OutletContext>();
 
 	if (!testraySubtask) {
@@ -61,10 +71,7 @@ const Subtasks = () => {
 
 	return (
 		<>
-			<SubtaskHeaderActions
-				mutateSubtask={mutateSubtask}
-				subtask={testraySubtask}
-			/>
+			<SubtaskHeaderActions />
 
 			<Container
 				className="pb-6"
@@ -128,7 +135,27 @@ const Subtasks = () => {
 								},
 								{
 									title: i18n.translate('comment'),
-									value: 'None',
+									value: mbMessage ? (
+										<div className="d-flex flex-column mt-3">
+											<cite>
+												{mbMessage?.articleBody}
+											</cite>
+
+											<small className="mt-1 text-gray">
+												<Avatar
+													displayName
+													name={`${
+														mbMessage.creator?.name
+													} · ${getTimeFromNow(
+														mbMessage.dateCreated
+													)}`}
+													url={
+														mbMessage.creator?.image
+													}
+												/>
+											</small>
+										</div>
+									) : null,
 								},
 							]}
 						/>
@@ -149,6 +176,16 @@ const Subtasks = () => {
 									title: i18n.translate('merged-with'),
 									value: mergedSubtaskNames,
 									visible: !!mergedSubtaskNames.length,
+								},
+								{
+									title: i18n.translate('split-from'),
+									value: `${testraySubtask.splitFromSubtask?.name}`,
+									visible: !!testraySubtask?.splitFromSubtask,
+								},
+								{
+									title: i18n.translate('split-to'),
+									value: splitSubtaskNames,
+									visible: !!splitSubtaskNames.length,
 								},
 							]}
 						/>

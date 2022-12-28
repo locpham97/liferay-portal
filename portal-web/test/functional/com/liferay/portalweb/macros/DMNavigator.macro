@@ -120,7 +120,7 @@ definition {
 			locator1 = "DocumentsAndMedia#DESCRIPTIVE_LIST_DOCUMENT_TITLE",
 			value1 = "${dmDocumentTitle}");
 
-		Click(locator1 = "Button#EDIT");
+		DMNavigator.gotoVerticalEllipsisMenuItem(menuItem = "Edit");
 	}
 
 	macro gotoEditDocumentType {
@@ -141,6 +141,8 @@ definition {
 
 	macro gotoFolder {
 		var key_dmFolderName = "${dmFolderName}";
+
+		SelectFrame(locator1 = "DocumentsAndMedia#CARD_FOLDER");
 
 		AssertClick(
 			locator1 = "DocumentsAndMedia#DESCRIPTIVE_LIST_FOLDER_TITLE",
@@ -199,9 +201,7 @@ definition {
 
 		var key_assetTitle = "${key_assetTitle}";
 
-		AssertTextEquals(
-			locator1 = "DocumentsAndMediaDocument#DOCUMENT_INFO_TITLE",
-			value1 = "${dmDocumentTitle}");
+		DMDocument.viewDocumentTitleCmdPG(dmDocumentTitle = "${dmDocumentTitle}");
 
 		DMDocument.expandInfo();
 
@@ -256,9 +256,9 @@ definition {
 			locator1 = "DocumentsAndMedia#DESCRIPTIVE_LIST_DOCUMENT_TITLE",
 			value1 = "${dmDocumentTitle}");
 
-		DMDocument.viewDocumentTitleCmdPG(dmDocumentTitle = "${dmDocumentTitle}");
+		DMDocument.expandInfo();
 
-		Click.clickAt(locator1 = "Icon#INFO");
+		DMDocument.viewDocumentInfoTitleCmdPG(dmDocumentTitle = "${dmDocumentTitle}");
 
 		AssertElementPresent(locator1 = "Button#SHARE_SIDEBAR");
 

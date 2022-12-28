@@ -22,16 +22,22 @@ import com.liferay.item.selector.criteria.FileEntryItemSelectorReturnType;
 import com.liferay.item.selector.criteria.upload.criterion.UploadItemSelectorCriterion;
 import com.liferay.layout.admin.constants.LayoutAdminPortletKeys;
 import com.liferay.layout.admin.web.internal.configuration.LayoutUtilityPageThumbnailConfiguration;
+import com.liferay.layout.admin.web.internal.security.permission.resource.LayoutUtilityPageEntryPermission;
+import com.liferay.layout.utility.page.constants.LayoutUtilityPageActionKeys;
 import com.liferay.layout.utility.page.model.LayoutUtilityPageEntry;
 import com.liferay.layout.utility.page.service.LayoutUtilityPageEntryLocalServiceUtil;
 import com.liferay.petra.function.UnsafeConsumer;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.language.LanguageUtil;
+import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.portlet.LiferayWindowState;
 import com.liferay.portal.kernel.portlet.RequestBackedPortletURLFactoryUtil;
 import com.liferay.portal.kernel.portlet.url.builder.PortletURLBuilder;
+import com.liferay.portal.kernel.security.auth.AuthTokenUtil;
+import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.service.LayoutLocalServiceUtil;
+import com.liferay.portal.kernel.service.permission.GroupPermissionUtil;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.upload.UploadServletRequestConfigurationHelperUtil;
 import com.liferay.portal.kernel.util.Constants;
@@ -40,6 +46,8 @@ import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
+import com.liferay.staging.StagingGroupHelper;
+import com.liferay.staging.StagingGroupHelperUtil;
 import com.liferay.taglib.security.PermissionsURLTag;
 
 import java.util.List;
@@ -67,6 +75,8 @@ public class LayoutUtilityPageEntryActionDropdownItemsProvider {
 		_httpServletRequest = PortalUtil.getHttpServletRequest(renderRequest);
 		_itemSelector = (ItemSelector)renderRequest.getAttribute(
 			ItemSelector.class.getName());
+		_layout = LayoutLocalServiceUtil.fetchLayout(
+			layoutUtilityPageEntry.getPlid());
 		_layoutUtilityPageThumbnailConfiguration =
 			(LayoutUtilityPageThumbnailConfiguration)renderRequest.getAttribute(
 				LayoutUtilityPageThumbnailConfiguration.class.getName());
@@ -79,8 +89,14 @@ public class LayoutUtilityPageEntryActionDropdownItemsProvider {
 			dropdownGroupItem -> {
 				dropdownGroupItem.setDropdownItems(
 					DropdownItemListBuilder.add(
+						() -> LayoutUtilityPageEntryPermission.contains(
+							_themeDisplay.getPermissionChecker(),
+							_layoutUtilityPageEntry, ActionKeys.UPDATE),
 						_getEditLayoutUtilityPageEntryActionUnsafeConsumer()
 					).add(
+						() -> LayoutUtilityPageEntryPermission.contains(
+							_themeDisplay.getPermissionChecker(),
+							_layoutUtilityPageEntry, ActionKeys.VIEW),
 						_getViewLayoutUtilityPageEntryActionUnsafeConsumer()
 					).build());
 				dropdownGroupItem.setSeparator(true);
@@ -89,10 +105,19 @@ public class LayoutUtilityPageEntryActionDropdownItemsProvider {
 			dropdownGroupItem -> {
 				dropdownGroupItem.setDropdownItems(
 					DropdownItemListBuilder.add(
+						() -> LayoutUtilityPageEntryPermission.contains(
+							_themeDisplay.getPermissionChecker(),
+							_layoutUtilityPageEntry, ActionKeys.UPDATE),
 						_getMarkAsDefaultLayoutUtilityPageEntryActionUnsafeConsumer()
 					).add(
+						() -> LayoutUtilityPageEntryPermission.contains(
+							_themeDisplay.getPermissionChecker(),
+							_layoutUtilityPageEntry, ActionKeys.UPDATE),
 						_getRenameLayoutUtilityPageEntryActionUnsafeConsumer()
 					).add(
+						() -> LayoutUtilityPageEntryPermission.contains(
+							_themeDisplay.getPermissionChecker(),
+							_layoutUtilityPageEntry, ActionKeys.UPDATE),
 						_getUpdateLayoutUtilityPageEntryPreviewActionUnsafeConsumer()
 					).build());
 				dropdownGroupItem.setSeparator(true);
@@ -109,6 +134,13 @@ public class LayoutUtilityPageEntryActionDropdownItemsProvider {
 			dropdownGroupItem -> {
 				dropdownGroupItem.setDropdownItems(
 					DropdownItemListBuilder.add(
+						() ->
+							!_isLiveGroup() &&
+							GroupPermissionUtil.contains(
+								_themeDisplay.getPermissionChecker(),
+								_themeDisplay.getScopeGroup(),
+								LayoutUtilityPageActionKeys.
+									ADD_LAYOUT_UTILITY_PAGE_ENTRY),
 						_getCopyLayoutUtilityPageEntryActionUnsafeConsumer()
 					).build());
 				dropdownGroupItem.setSeparator(true);
@@ -117,6 +149,9 @@ public class LayoutUtilityPageEntryActionDropdownItemsProvider {
 			dropdownGroupItem -> {
 				dropdownGroupItem.setDropdownItems(
 					DropdownItemListBuilder.add(
+						() -> LayoutUtilityPageEntryPermission.contains(
+							_themeDisplay.getPermissionChecker(),
+							_layoutUtilityPageEntry, ActionKeys.PERMISSIONS),
 						_getPermissionsLayoutUtilityPageEntryActionUnsafeConsumer()
 					).build());
 				dropdownGroupItem.setSeparator(true);
@@ -125,6 +160,9 @@ public class LayoutUtilityPageEntryActionDropdownItemsProvider {
 			dropdownGroupItem -> {
 				dropdownGroupItem.setDropdownItems(
 					DropdownItemListBuilder.add(
+						() -> LayoutUtilityPageEntryPermission.contains(
+							_themeDisplay.getPermissionChecker(),
+							_layoutUtilityPageEntry, ActionKeys.DELETE),
 						_getDeleteLayoutUtilityPageEntryActionUnsafeConsumer()
 					).build());
 				dropdownGroupItem.setSeparator(true);
@@ -222,12 +260,9 @@ public class LayoutUtilityPageEntryActionDropdownItemsProvider {
 		exportLayoutUtilityPageEntryURL.setResourceID(
 			"/layout_admin/export_layout_utility_page_entries");
 
-		Layout draftLayout = LayoutLocalServiceUtil.fetchDraftLayout(
-			_layoutUtilityPageEntry.getPlid());
-
 		return dropdownItem -> {
 			dropdownItem.setDisabled(
-				draftLayout.getStatus() == WorkflowConstants.STATUS_DRAFT);
+				_draftLayout.getStatus() == WorkflowConstants.STATUS_DRAFT);
 			dropdownItem.setHref(exportLayoutUtilityPageEntryURL);
 			dropdownItem.setIcon("upload");
 			dropdownItem.setLabel(
@@ -287,6 +322,7 @@ public class LayoutUtilityPageEntryActionDropdownItemsProvider {
 					"layoutUtilityPageEntryId",
 					_layoutUtilityPageEntry.getLayoutUtilityPageEntryId()
 				).buildString());
+			dropdownItem.setDisabled(!_layout.isPublished());
 
 			String message = StringPool.BLANK;
 
@@ -407,19 +443,48 @@ public class LayoutUtilityPageEntryActionDropdownItemsProvider {
 		_getViewLayoutUtilityPageEntryActionUnsafeConsumer() {
 
 		return dropdownItem -> {
-			dropdownItem.setHref(
-				HttpComponentsUtil.setParameter(
-					PortalUtil.getLayoutFullURL(_draftLayout, _themeDisplay),
-					"p_l_back_url", _themeDisplay.getURLCurrent()));
+			Layout previewLayout = _draftLayout;
+
+			if (_isLiveGroup()) {
+				previewLayout = _layout;
+			}
+
+			String layoutFullURL = PortalUtil.getLayoutFullURL(
+				previewLayout, _themeDisplay);
+
+			layoutFullURL = HttpComponentsUtil.setParameter(
+				layoutFullURL, "p_l_back_url", _themeDisplay.getURLCurrent());
+			layoutFullURL = HttpComponentsUtil.setParameter(
+				layoutFullURL, "p_l_mode", Constants.PREVIEW);
+			layoutFullURL = HttpComponentsUtil.addParameter(
+				layoutFullURL, "p_p_auth",
+				AuthTokenUtil.getToken(_httpServletRequest));
+
+			dropdownItem.setHref(layoutFullURL);
+
 			dropdownItem.setIcon("shortcut");
 			dropdownItem.setLabel(
 				LanguageUtil.get(_httpServletRequest, "preview"));
 		};
 	}
 
+	private boolean _isLiveGroup() {
+		Group group = _themeDisplay.getScopeGroup();
+
+		StagingGroupHelper stagingGroupHelper =
+			StagingGroupHelperUtil.getStagingGroupHelper();
+
+		if (stagingGroupHelper.isLiveGroup(group)) {
+			return true;
+		}
+
+		return false;
+	}
+
 	private final Layout _draftLayout;
 	private final HttpServletRequest _httpServletRequest;
 	private final ItemSelector _itemSelector;
+	private final Layout _layout;
 	private final LayoutUtilityPageEntry _layoutUtilityPageEntry;
 	private final LayoutUtilityPageThumbnailConfiguration
 		_layoutUtilityPageThumbnailConfiguration;

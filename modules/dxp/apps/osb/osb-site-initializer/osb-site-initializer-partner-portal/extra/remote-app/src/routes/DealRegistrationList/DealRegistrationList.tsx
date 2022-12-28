@@ -15,6 +15,7 @@ import ClayLoadingIndicator from '@clayui/loading-indicator';
 import {useModal} from '@clayui/modal';
 import {ClayPaginationBarWithBasicItems} from '@clayui/pagination-bar';
 import {useState} from 'react';
+import {CSVLink} from 'react-csv';
 
 import Modal from '../../common/components/Modal';
 import Table from '../../common/components/Table';
@@ -26,6 +27,7 @@ import useLiferayNavigate from '../../common/hooks/useLiferayNavigate';
 import usePagination from '../../common/hooks/usePagination';
 import {DealRegistrationListItem} from '../../common/interfaces/dealRegistrationListItem';
 import {Liferay} from '../../common/services/liferay';
+import getDoubleParagraph from '../../common/utils/getDoubleParagraph';
 import ModalContent from './components/ModalContent';
 import useFilters from './hooks/useFilters';
 import useGetListItemsFromDealRegistration from './hooks/useGetListItemsFromDealRegistration';
@@ -34,7 +36,11 @@ export type DealRegistrationItem = {
 	[key in DealRegistrationColumnKey]?: any;
 };
 
-const DealRegistrationList = () => {
+interface IProps {
+	sort: string;
+}
+
+const DealRegistrationList = ({sort}: IProps) => {
 	const {filters, filtersTerm, onFilter} = useFilters();
 	const [isVisibleModal, setIsVisibleModal] = useState(false);
 	const [modalContent, setModalContent] = useState<DealRegistrationItem>({});
@@ -47,7 +53,8 @@ const DealRegistrationList = () => {
 	const {data, isValidating} = useGetListItemsFromDealRegistration(
 		pagination.activePage,
 		pagination.activeDelta,
-		filtersTerm
+		filtersTerm,
+		sort
 	);
 
 	const siteURL = useLiferayNavigate();
@@ -57,28 +64,24 @@ const DealRegistrationList = () => {
 			label: 'Account Name',
 		},
 		{
-			columnKey: DealRegistrationColumnKey.START_DATE,
-			label: 'Start Date',
+			columnKey: DealRegistrationColumnKey.DATE_SUBMITTED,
+			label: 'Date Submitted',
 		},
 		{
-			columnKey: DealRegistrationColumnKey.END_DATE,
-			label: 'End Date',
+			columnKey: DealRegistrationColumnKey.PRIMARY_PROSPECT_NAME,
+			label: getDoubleParagraph('Primary Prospect', 'Name'),
 		},
 		{
-			columnKey: DealRegistrationColumnKey.DEAL_AMOUNT,
-			label: 'Amount',
+			columnKey: DealRegistrationColumnKey.PRIMARY_PROSPECT_EMAIL,
+			label: getDoubleParagraph('Primary Prospect', 'Email'),
 		},
 		{
-			columnKey: DealRegistrationColumnKey.PARTNER_REP,
-			label: 'Partner Rep',
+			columnKey: DealRegistrationColumnKey.PRIMARY_PROSPECT_PHONE,
+			label: getDoubleParagraph('Primary Prospect', 'Phone'),
 		},
 		{
-			columnKey: DealRegistrationColumnKey.LIFERAY_REP,
-			label: 'Liferay Rep',
-		},
-		{
-			columnKey: DealRegistrationColumnKey.STAGE,
-			label: 'Stage',
+			columnKey: DealRegistrationColumnKey.STATUS,
+			label: 'Status',
 		},
 	];
 
@@ -132,7 +135,7 @@ const DealRegistrationList = () => {
 
 	return (
 		<div className="border-0 my-4">
-			<h1>Partner Opportunity Registration</h1>
+			<h1>Partner Deal Registration</h1>
 
 			<TableHeader>
 				<div className="d-flex">
@@ -161,15 +164,26 @@ const DealRegistrationList = () => {
 					</div>
 				</div>
 
-				<div className="mb-2 mb-lg-0">
+				<div>
+					{!!data.items?.length && (
+						<CSVLink
+							className="btn btn-secondary mb-2 mb-lg-0 mr-2"
+							data={data.items}
+							filename="Partner Deal Registration.csv"
+						>
+							Export Deal Registrations
+						</CSVLink>
+					)}
+
 					<ClayButton
+						className="mb-2 mb-lg-0 mr-2"
 						onClick={() =>
 							Liferay.Util.navigate(
 								`${siteURL}/${PRMPageRoute.CREATE_DEAL_REGISTRATION}`
 							)
 						}
 					>
-						Register New Opportunity
+						Register New Deal
 					</ClayButton>
 				</div>
 			</TableHeader>

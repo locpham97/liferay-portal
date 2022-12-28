@@ -843,6 +843,46 @@ public class DDLRecordLocalServiceImpl extends DDLRecordLocalServiceBaseImpl {
 	@Indexable(type = IndexableType.REINDEX)
 	@Override
 	public DDLRecord updateRecord(
+			long userId, long recordId, int displayIndex,
+			Map<String, Serializable> fieldsMap, boolean mergeFields,
+			ServiceContext serviceContext)
+		throws PortalException {
+
+		DDLRecord record = ddlRecordPersistence.findByPrimaryKey(recordId);
+
+		DDMFormValues oldDDMFormValues = record.getDDMFormValues();
+
+		DDLRecordSet recordSet = record.getRecordSet();
+
+		DDMStructure ddmStructure = recordSet.getDDMStructure();
+
+		Fields fields = toFields(
+			ddmStructure.getStructureId(), fieldsMap,
+			serviceContext.getLocale(), oldDDMFormValues.getDefaultLocale());
+
+		if (mergeFields) {
+			DDLRecordVersion recordVersion = record.getLatestRecordVersion();
+
+			DDMFormValues existingDDMFormValues =
+				storageEngine.getDDMFormValues(recordVersion.getDDMStorageId());
+
+			Fields existingFields = ddmFormValuesToFieldsConverter.convert(
+				recordSet.getDDMStructure(), existingDDMFormValues);
+
+			fields = ddm.mergeFields(fields, existingFields);
+		}
+
+		DDMFormValues ddmFormValues = fieldsToDDMFormValuesConverter.convert(
+			recordSet.getDDMStructure(), fields);
+
+		return updateRecord(
+			userId, recordId, false, displayIndex, ddmFormValues,
+			serviceContext);
+	}
+
+	@Indexable(type = IndexableType.REINDEX)
+	@Override
+	public DDLRecord updateRecord(
 			long userId, long recordId, long ddmStorageId,
 			ServiceContext serviceContext)
 		throws PortalException {
@@ -933,7 +973,8 @@ public class DDLRecordLocalServiceImpl extends DDLRecordLocalServiceBaseImpl {
 			}
 		}
 		else {
-			if (Objects.equals(
+			if ((status != WorkflowConstants.STATUS_PENDING) &&
+				Objects.equals(
 					record.getVersion(), recordVersion.getVersion())) {
 
 				String newVersion = DDLRecordConstants.VERSION_DEFAULT;

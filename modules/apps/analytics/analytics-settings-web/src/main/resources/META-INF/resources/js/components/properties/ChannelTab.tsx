@@ -15,25 +15,33 @@
 import React from 'react';
 
 import {fetchChannels} from '../../utils/api';
+import {TColumn} from '../table/types';
 import {TProperty} from './Properties';
 import Tab, {TRawItem} from './Tab';
 
-const columns = [
+enum EColumn {
+	Name = 'name',
+	SiteName = 'siteName',
+	ChannelName = 'channelName',
+}
+
+const columns: TColumn[] = [
 	{
 		expanded: true,
+		id: EColumn.Name,
 		label: Liferay.Language.get('channel-name'),
-		value: 'name',
 	},
 	{
 		expanded: true,
+		id: EColumn.SiteName,
 		label: Liferay.Language.get('related-site'),
-		value: 'siteName',
+		sortable: false,
 	},
 	{
 		expanded: true,
+		id: EColumn.ChannelName,
 		label: Liferay.Language.get('assigned-property'),
 		sortable: false,
-		value: 'channelName',
 	},
 ];
 
@@ -49,15 +57,15 @@ const ChannelTab: React.FC<IChannelTabProps> = ({
 	property,
 }) => (
 	<Tab
-		columns={columns.map(({value}) => value) as Array<keyof TRawItem>}
-		description={Liferay.Language.get(
-			'analytics-cloud-assign-commerce-channel-help'
-		)}
-		emptyStateTitle={Liferay.Language.get('there-are-no-channels')}
+		columns={columns.map(({id}) => id) as Array<keyof TRawItem>}
+		description={Liferay.Language.get('channels-tab-description')}
+		emptyState={{
+			noResultsTitle: Liferay.Language.get('no-channels-were-found'),
+			title: Liferay.Language.get('there-are-no-channels'),
+		}}
 		enableCheckboxs={!!property.commerceSyncEnabled}
 		header={columns}
 		initialIds={initialIds}
-		noResultsTitle={Liferay.Language.get('no-channels-were-found')}
 		onItemsChange={onChannelsChange}
 		property={property}
 		requestFn={fetchChannels}

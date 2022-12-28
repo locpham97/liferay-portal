@@ -46,7 +46,8 @@ public class ObjectDefinitionLocalServiceUtil {
 	 * Never modify this class directly. Add custom service methods to <code>com.liferay.object.service.impl.ObjectDefinitionLocalServiceImpl</code> and rerun ServiceBuilder to regenerate this class.
 	 */
 	public static ObjectDefinition addCustomObjectDefinition(
-			long userId, Map<java.util.Locale, String> labelMap, String name,
+			long userId, boolean enableComments,
+			Map<java.util.Locale, String> labelMap, String name,
 			String panelAppOrder, String panelCategoryKey,
 			Map<java.util.Locale, String> pluralLabelMap, String scope,
 			String storageType,
@@ -54,8 +55,8 @@ public class ObjectDefinitionLocalServiceUtil {
 		throws PortalException {
 
 		return getService().addCustomObjectDefinition(
-			userId, labelMap, name, panelAppOrder, panelCategoryKey,
-			pluralLabelMap, scope, storageType, objectFields);
+			userId, enableComments, labelMap, name, panelAppOrder,
+			panelCategoryKey, pluralLabelMap, scope, storageType, objectFields);
 	}
 
 	/**
@@ -96,14 +97,14 @@ public class ObjectDefinitionLocalServiceUtil {
 			Map<java.util.Locale, String> labelMap, String name,
 			String pkObjectFieldDBColumnName, String pkObjectFieldName,
 			Map<java.util.Locale, String> pluralLabelMap, String scope,
-			int version,
+			String titleObjectFieldName, int version,
 			List<com.liferay.object.model.ObjectField> objectFields)
 		throws PortalException {
 
 		return getService().addSystemObjectDefinition(
 			userId, className, dbTableName, labelMap, name,
 			pkObjectFieldDBColumnName, pkObjectFieldName, pluralLabelMap, scope,
-			version, objectFields);
+			titleObjectFieldName, version, objectFields);
 	}
 
 	/**

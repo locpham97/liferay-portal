@@ -18,10 +18,10 @@ import com.liferay.application.list.GroupProvider;
 import com.liferay.application.list.constants.ApplicationListWebKeys;
 import com.liferay.exportimport.kernel.staging.StagingUtil;
 import com.liferay.layout.admin.constants.LayoutAdminPortletKeys;
+import com.liferay.layout.util.LayoutsTree;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.PortalException;
-import com.liferay.portal.kernel.frontend.icons.FrontendIconsUtil;
 import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactoryUtil;
 import com.liferay.portal.kernel.json.JSONObject;
@@ -58,7 +58,6 @@ import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
 import com.liferay.portal.util.PropsValues;
-import com.liferay.portlet.layoutsadmin.util.LayoutsTreeUtil;
 import com.liferay.product.navigation.product.menu.constants.ProductNavigationProductMenuPortletKeys;
 import com.liferay.product.navigation.product.menu.constants.ProductNavigationProductMenuWebKeys;
 import com.liferay.site.navigation.model.SiteNavigationMenu;
@@ -88,8 +87,8 @@ public class LayoutsTreeDisplayContext {
 
 	public LayoutsTreeDisplayContext(
 		HttpServletRequest httpServletRequest, Language language,
-		LayoutService layoutService, RenderRequest renderRequest,
-		RenderResponse renderResponse,
+		LayoutService layoutService, LayoutsTree layoutsTree,
+		RenderRequest renderRequest, RenderResponse renderResponse,
 		SiteNavigationMenuItemLocalService siteNavigationMenuItemLocalService,
 		SiteNavigationMenuItemTypeRegistry siteNavigationMenuItemTypeRegistry,
 		SiteNavigationMenuLocalService siteNavigationMenuLocalService) {
@@ -100,6 +99,7 @@ public class LayoutsTreeDisplayContext {
 		_httpServletRequest = httpServletRequest;
 		_language = language;
 		_layoutService = layoutService;
+		_layoutsTree = layoutsTree;
 		_renderRequest = renderRequest;
 		_renderResponse = renderResponse;
 		_siteNavigationMenuItemLocalService =
@@ -236,7 +236,7 @@ public class LayoutsTreeDisplayContext {
 		).put(
 			"productMenuPortletURL", getProductMenuPortletURL()
 		).put(
-			"spritemap", FrontendIconsUtil.getSpritemap(_themeDisplay)
+			"spritemap", _themeDisplay.getPathThemeSpritemap()
 		).build();
 	}
 
@@ -541,7 +541,7 @@ public class LayoutsTreeDisplayContext {
 			ProductNavigationProductMenuWebKeys.RETURN_LAYOUTS_AS_ARRAY,
 			Boolean.TRUE);
 
-		String layoutsJSON = LayoutsTreeUtil.getLayoutsJSON(
+		String layoutsJSON = _layoutsTree.getLayoutsJSON(
 			_httpServletRequest, _groupId, isPrivateLayout(),
 			LayoutConstants.DEFAULT_PARENT_LAYOUT_ID, openNodes, true,
 			"productMenuPagesTree", null);
@@ -957,6 +957,7 @@ public class LayoutsTreeDisplayContext {
 	private final HttpServletRequest _httpServletRequest;
 	private final Language _language;
 	private final LayoutService _layoutService;
+	private final LayoutsTree _layoutsTree;
 	private final LiferayPortletRequest _liferayPortletRequest;
 	private final String _namespace;
 	private Boolean _pageHierarchySelectedOption;

@@ -15,6 +15,7 @@
 package com.liferay.portal.tools;
 
 import com.liferay.document.library.kernel.service.DLFileEntryTypeLocalServiceUtil;
+import com.liferay.document.library.kernel.store.Store;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.dao.orm.common.SQLTransformer;
 import com.liferay.portal.db.index.IndexUpdaterUtil;
@@ -33,7 +34,6 @@ import com.liferay.portal.kernel.module.framework.ModuleServiceLifecycle;
 import com.liferay.portal.kernel.module.util.ServiceLatch;
 import com.liferay.portal.kernel.module.util.SystemBundleUtil;
 import com.liferay.portal.kernel.service.ClassNameLocalServiceUtil;
-import com.liferay.portal.kernel.upgrade.UpgradeException;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.HashMapDictionaryBuilder;
 import com.liferay.portal.kernel.util.PropsUtil;
@@ -47,13 +47,14 @@ import com.liferay.portal.util.PortalClassPathUtil;
 import com.liferay.portal.util.PropsValues;
 import com.liferay.portal.verify.VerifyProcessSuite;
 import com.liferay.portal.verify.VerifyProperties;
-import com.liferay.portlet.documentlibrary.store.StoreFactory;
 import com.liferay.util.dao.orm.CustomSQLUtil;
 
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+
+import java.util.Collection;
 
 import org.apache.commons.lang.time.StopWatch;
 import org.apache.logging.log4j.core.Appender;
@@ -115,11 +116,21 @@ public class DBUpgrader {
 		}
 	}
 
-	public static void main(String[] args) {
-		try {
-			StopWatch stopWatch = new StopWatch();
+	public static long getUpgradeTime() {
+		if (_stopWatch == null) {
+			return 0;
+		}
 
-			stopWatch.start();
+		return _stopWatch.getTime();
+	}
+
+	public static void main(String[] args) {
+		String result = "Completed";
+
+		try {
+			_stopWatch = new StopWatch();
+
+			_stopWatch.start();
 
 			PortalClassPathUtil.initializeClassPaths(null);
 
@@ -139,24 +150,28 @@ public class DBUpgrader {
 
 			upgradeModules();
 
-			StoreFactory storeFactory = StoreFactory.getInstance();
+			BundleContext bundleContext = SystemBundleUtil.getBundleContext();
 
-			if (storeFactory.getStore(PropsValues.DL_STORE_IMPL) == null) {
-				throw new UpgradeException(
-					"Store \"" + PropsValues.DL_STORE_IMPL +
-						"\" is not available");
+			Collection<?> collection = bundleContext.getServiceReferences(
+				Store.class, "(default=true)");
+
+			if (collection.isEmpty()) {
+				throw new IllegalStateException("Missing default Store");
 			}
-
-			System.out.println(
-				"\nCompleted Liferay core upgrade process in " +
-					(stopWatch.getTime() / Time.SECOND) + " seconds");
 		}
 		catch (Exception exception) {
 			_log.error(exception);
 
-			System.exit(1);
+			result = "Failed";
 		}
 		finally {
+			_stopWatch.stop();
+
+			System.out.println(
+				StringBundler.concat(
+					"\n", result, " Liferay upgrade process in ",
+					_stopWatch.getTime() / Time.SECOND, " seconds"));
+
 			if (PropsValues.UPGRADE_REPORT_ENABLED) {
 				_stopUpgradeReportLogAppender();
 			}
@@ -408,5 +423,6 @@ public class DBUpgrader {
 	private static volatile Appender _appender;
 	private static volatile ServiceReference<Appender>
 		_appenderServiceReference;
+	private static volatile StopWatch _stopWatch;
 
 }

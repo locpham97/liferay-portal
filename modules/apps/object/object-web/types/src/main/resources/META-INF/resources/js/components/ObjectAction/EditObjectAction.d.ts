@@ -15,26 +15,30 @@
 /// <reference types="react" />
 
 import {CustomItem, SidebarCategory} from '@liferay/object-js-components-web';
+interface EditObjectActionProps {
+	isApproved: boolean;
+	objectAction: ObjectAction;
+	objectActionCodeEditorElements: SidebarCategory[];
+	objectActionExecutors: CustomItem[];
+	objectActionTriggers: CustomItem[];
+	objectDefinitionExternalReferenceCode: string;
+	objectDefinitionId: number;
+	objectDefinitionsRelationshipsURL: string;
+	readOnly?: boolean;
+	systemObject: boolean;
+	validateExpressionURL: string;
+}
 export default function EditObjectAction({
 	isApproved,
 	objectAction: {id, ...values},
 	objectActionCodeEditorElements,
 	objectActionExecutors,
 	objectActionTriggers,
+	objectDefinitionExternalReferenceCode,
 	objectDefinitionId,
 	objectDefinitionsRelationshipsURL,
 	readOnly,
+	systemObject,
 	validateExpressionURL,
-}: IProps): JSX.Element;
-interface IProps {
-	isApproved: boolean;
-	objectAction: ObjectAction;
-	objectActionCodeEditorElements: SidebarCategory[];
-	objectActionExecutors: CustomItem[];
-	objectActionTriggers: CustomItem[];
-	objectDefinitionId: number;
-	objectDefinitionsRelationshipsURL: string;
-	readOnly?: boolean;
-	validateExpressionURL: string;
-}
+}: EditObjectActionProps): JSX.Element;
 export {};

@@ -12,22 +12,59 @@
  * details.
  */
 
-import ClayButton from '@clayui/button';
-import ClayForm, {ClayInput} from '@clayui/form';
+import ClayButton, {ClayButtonWithIcon} from '@clayui/button';
+import ClayDropDown from '@clayui/drop-down';
+import ClayForm, {ClayCheckbox, ClayInput} from '@clayui/form';
 import ClayIcon from '@clayui/icon';
+import ClayLabel from '@clayui/label';
 import {ClayPaginationWithBasicItems} from '@clayui/pagination';
 import ClayPaginationBar from '@clayui/pagination-bar';
+import classNames from 'classnames';
 import {useCallback, useEffect, useState} from 'react';
 
 import Header from '../../../../common/components/header';
 import Table from '../../../../common/components/table';
-import {Parameters} from '../../../../common/services';
+import {Parameters, getPolicies} from '../../../../common/services';
 import {
 	deleteClaimByExternalReferenceCode,
 	getClaims,
 } from '../../../../common/services/Claim';
+import {getPicklistByName} from '../../../../common/services/Picklists';
+import {getProducts} from '../../../../common/services/Products';
+import {
+	Liferay,
+	LiferayOnAction,
+} from '../../../../common/services/liferay/liferay';
 import formatDate from '../../../../common/utils/dateFormatter';
-import useDebounce from '../../../../hooks/useDebounce';
+
+type ClaimTableType = {
+	claimCreateDate: string;
+	claimStatus: {name: string};
+	externalReferenceCode: string;
+	id: string;
+	r_policyToClaims_c_raylifePolicy: {
+		externalReferenceCode: string;
+		policyOwnerName: string;
+		productName: string;
+	};
+};
+
+type ItemsProducts = {
+	[keys: string]: string;
+};
+
+type ItemsPicklists = {
+	[keys: string]: string;
+};
+
+type TableContentType = {
+	[key: string]: string;
+};
+
+type ItemsFilteredType = {
+	checked: boolean;
+	item: string;
+};
 
 const ClaimsTable = () => {
 	const [dataClaims, setDataClaims] = useState<TableContentType[]>([]);
@@ -39,52 +76,133 @@ const ClaimsTable = () => {
 	const [secondPaginationLabel, setSecondPaginationLabel] = useState<number>(
 		1
 	);
-
 	const [searchInput, setSearchInput] = useState('');
+	const [sortByDate, setSortByDate] = useState<string>('desc');
+	const [activeFilter, setActiveFilter] = useState(true);
+	const [productFilterItems, setProductFilterItems] = useState<string[]>([]);
+	const [statusFilterItems, setStatusFilterItems] = useState<string[]>([]);
+	const [filterProductCheck, setFilterProductCheck] = useState<string[]>([]);
+	const [filterStatusCheck, setFilterStatusCheck] = useState<string[]>([]);
+	const [filterCheckedLabel, setFilterCheckedLabel] = useState<string[]>([]);
+	const [checkedStateProduct, setCheckedStateProduct] = useState<boolean[]>(
+		[]
+	);
+	const [checkedStateStatus, setCheckedStateStatus] = useState<boolean[]>([]);
+	const [policyERCByPON, setPolicyERCByPON] = useState<string>();
+	const [policyERCByProduct, setPolicyERCByProduct] = useState<string[]>([]);
 
-	const filterSearch = `contains(id, '${searchInput}') or contains(r_policyToClaims_c_raylifePolicyERC, '${searchInput}')`;
+	const filterSearch = `contains(id, '${searchInput}') or contains(r_policyToClaims_c_raylifePolicyERC, '${searchInput}') or contains(r_policyToClaims_c_raylifePolicyERC, '${policyERCByPON}')`;
+
+	const filterProduct = `r_policyToClaims_c_raylifePolicyERC in (${policyERCByProduct})`;
+
+	const filterStatus = `claimStatus in (${filterStatusCheck})`;
+
+	const filterSearchAndStatus = `${filterSearch} and ${filterStatus}`;
+
+	const filterSearchAndProduct = `${filterSearch} and ${filterProduct}`;
+
+	const filterProductAndStatus = `${filterProduct} and ${filterStatus}`;
+
+	const filterSearchAndStatusAndProduct = `${filterSearch} and ${filterProduct} and ${filterStatus}`;
+
+	const PARAMETERS_GET_ALL_ITEMS = {
+		pageSize: '0',
+	};
+
+	const pageAndPageSize = {
+		page: page.toString(),
+		pageSize: pageSize.toString(),
+	};
 
 	const generateParameters = (filtered?: string) => {
 		const parameters: Parameters =
 			filtered === undefined
-				? {page: '0', pageSize: '0'}
+				? {
+						page: pageAndPageSize?.page,
+						pageSize: pageAndPageSize?.pageSize,
+						sort: `claimCreateDate:${sortByDate}`,
+				  }
 				: {
 						filter: filtered,
-						page: '0',
-						pageSize: '0',
+						page: pageAndPageSize?.page,
+						pageSize: pageAndPageSize?.pageSize,
+						sort: `claimCreateDate:${sortByDate}`,
 				  };
 
 		return parameters;
 	};
 
-	const [parameters, setParameters] = useState<Parameters>(
-		generateParameters()
-	);
-
-	const parameterDebounce = useDebounce(parameters, 200);
-
-	const conditionalFilters = () => {
-		setPage(1);
-
+	const setFilterSearch = () => {
 		if (searchInput) {
-			return setParameters(generateParameters(filterSearch));
+			if (!filterProductCheck.length && !filterStatusCheck.length) {
+				return filterSearch;
+			}
+			if (filterStatusCheck.length && !filterProductCheck.length) {
+				return filterSearchAndStatus;
+			}
+			if (filterProductCheck.length && !filterStatusCheck.length) {
+				return filterSearchAndProduct;
+			}
+			if (filterStatusCheck.length && filterProductCheck.length) {
+				return filterSearchAndStatusAndProduct;
+			}
 		}
-	};
-
-	parameters.pageSize = pageSize.toString();
-	parameters.page = page.toString();
-
-	const handleClick = () => {
-		conditionalFilters();
+		if (!searchInput) {
+			if (!filterProductCheck.length && filterStatusCheck.length) {
+				return filterStatus;
+			}
+			if (!filterStatusCheck.length && filterProductCheck.length) {
+				return filterProduct;
+			}
+			if (filterProductCheck.length && filterStatusCheck.length) {
+				return filterProductAndStatus;
+			}
+		}
 	};
 
 	const handleChangeSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchInput(event.target.value);
 	};
 
+	const filterClick = () => {
+		setActiveFilter(!activeFilter);
+	};
+
+	const getPolicyERCByPolicyOwnerName = async () => {
+		const policies = await getPolicies(PARAMETERS_GET_ALL_ITEMS);
+
+		const filterPolicyByPolicyOwnerName = policies?.data?.items?.filter(
+			(data: {policyOwnerName: string}) =>
+				data?.policyOwnerName === searchInput
+		);
+
+		setPolicyERCByPON(
+			filterPolicyByPolicyOwnerName[0]?.externalReferenceCode
+		);
+	};
+
+	const getPolicyERCByProductName = async () => {
+		const policies = await getPolicies(PARAMETERS_GET_ALL_ITEMS);
+
+		const policyERCs: string[] = [];
+
+		filterProductCheck.forEach((productCheck) => {
+			for (const result of policies?.data?.items) {
+				if (productCheck === `'${result?.productName}'`) {
+					policyERCs.push("'" + result?.externalReferenceCode + "'");
+				}
+			}
+		});
+
+		const newPolicyERCs = [...new Set(policyERCs)];
+
+		setPolicyERCByProduct(newPolicyERCs);
+	};
+
 	const HEADERS = [
 		{
 			greyColor: true,
+			hasSort: true,
 			key: 'claimCreateDate',
 			value: 'Date Field',
 		},
@@ -117,22 +235,6 @@ const ClaimsTable = () => {
 		},
 	];
 
-	type TableContentType = {
-		[key: string]: string;
-	};
-
-	type ClaimTableType = {
-		claimCreateDate: string;
-		claimStatus: {name: string};
-		externalReferenceCode: string;
-		id: string;
-		r_policyToClaims_c_raylifePolicy: {
-			externalReferenceCode: string;
-			policyOwnerName: string;
-			productName: string;
-		};
-	};
-
 	const handleDeleteClaim = (externalReferenceCode: string) => {
 		deleteClaimByExternalReferenceCode(externalReferenceCode);
 
@@ -148,16 +250,62 @@ const ClaimsTable = () => {
 		alert(`Edit ${externalReferenceCode} Action`);
 	};
 
-	const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
-		if (event.key === 'Enter') {
-			handleClick();
-		}
+	useEffect(() => {
+		getProducts().then((results) => {
+			const productsResult = results?.data?.items;
+
+			const products = productsResult?.map((product: ItemsProducts) => {
+				return product?.name;
+			});
+
+			setProductFilterItems(products);
+		});
+
+		getPicklistByName('ClaimStatus').then((results) => {
+			const claimStatusResult = results?.data?.listTypeEntries;
+
+			const claimStatuses = claimStatusResult?.map(
+				(claimStatusPicklist: ItemsPicklists) => {
+					return claimStatusPicklist?.name;
+				}
+			);
+
+			setStatusFilterItems(claimStatuses);
+		});
+
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	const itemsCreate = (listItem: string[], checkedItem: boolean[]) => {
+		const itemsFilters = listItem.map(
+			(statusName: string, index: number) => {
+				const item: ItemsFilteredType[] = [];
+				item.push({
+					checked: checkedItem[index],
+					item: statusName,
+				});
+
+				return item;
+			}
+		);
+
+		return itemsFilters;
 	};
+
+	const itemProducts = itemsCreate(productFilterItems, checkedStateProduct);
+	const itemStatus = itemsCreate(statusFilterItems, checkedStateStatus);
+
+	useEffect(() => {
+		setCheckedStateProduct(
+			new Array(productFilterItems.length).fill(false)
+		);
+		setCheckedStateStatus(new Array(statusFilterItems.length).fill(false));
+	}, [productFilterItems, statusFilterItems]);
 
 	const getClaimsAndPolicies = useCallback(async () => {
 		const claimList: TableContentType[] = [];
 
-		const results = await getClaims(parameterDebounce);
+		const results = await getClaims(generateParameters(setFilterSearch()));
 
 		for (const result of results?.data?.items as ClaimTableType[]) {
 			const {
@@ -194,13 +342,254 @@ const ClaimsTable = () => {
 		const secondPaginationLabel =
 			totalCount > page * pageSize ? page * pageSize : totalCount;
 		setSecondPaginationLabel(secondPaginationLabel);
-	}, [page, pageSize, parameterDebounce]);
+
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		page,
+		pageSize,
+		sortByDate,
+		searchInput,
+		filterSearch,
+		filterProduct,
+		filterStatus,
+		filterProductCheck,
+		filterStatusCheck,
+	]);
 
 	useEffect(() => {
 		getClaimsAndPolicies();
-	}, [getClaimsAndPolicies, page, pageSize, parameterDebounce]);
+		getPolicyERCByPolicyOwnerName();
+		getPolicyERCByProductName();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		page,
+		pageSize,
+		sortByDate,
+		searchInput,
+		filterSearch,
+		filterProduct,
+		filterStatus,
+		filterProductCheck,
+		filterStatusCheck,
+	]);
+
+	const checkItemProduct = (productCheck: string) => {
+		setFilterCheckedLabel((old: string[]) => [...old, productCheck]);
+
+		if (!filterProductCheck.includes(productCheck)) {
+			setFilterProductCheck((old: string[]) => [
+				...old,
+				`'${productCheck}'`,
+			]);
+		}
+
+		return filterProductCheck;
+	};
+
+	const uncheckItemProduct = (productName: string) => {
+		setFilterCheckedLabel(
+			filterCheckedLabel.filter((currentProductName: string) => {
+				return productName !== currentProductName;
+			})
+		);
+
+		setFilterProductCheck(
+			filterProductCheck.filter((currentProductName: string) => {
+				return currentProductName !== `'${productName}'`;
+			})
+		);
+	};
+
+	const handleProductCheck = (checkedIndex: number, productName: string) => {
+		const updatedCheckedState = checkedStateProduct.map(
+			(checked: boolean, index: number) => {
+				if (index === checkedIndex) {
+					return !checked;
+				}
+
+				return checked;
+			}
+		);
+
+		setCheckedStateProduct(updatedCheckedState);
+
+		if (!checkedStateProduct[checkedIndex]) {
+			return checkItemProduct(productName);
+		}
+
+		return uncheckItemProduct(productName);
+	};
+
+	function convertToCamelCase(str: string) {
+		return str
+			.replace(/(?:^\w|[A-Z]|\b\w)/g, (word: string, index: number) => {
+				return index === 0 ? word.toLowerCase() : word.toUpperCase();
+			})
+			.replace(/\s+/g, '');
+	}
+
+	const checkItemStatus = (statusName: string) => {
+		setFilterCheckedLabel((old: string[]) => [...old, statusName]);
+		if (!filterStatusCheck.includes(statusName)) {
+			setFilterStatusCheck((old: string[]) => [
+				...old,
+				`'${convertToCamelCase(statusName)}'`,
+			]);
+		}
+
+		return filterStatusCheck;
+	};
+
+	const uncheckItemStatus = (statusName: string) => {
+		setFilterCheckedLabel(
+			filterCheckedLabel.filter((currentStatusName: string) => {
+				return statusName !== currentStatusName;
+			})
+		);
+
+		setFilterStatusCheck(
+			filterStatusCheck.filter((currentStatusName: string) => {
+				return (
+					currentStatusName !== `'${convertToCamelCase(statusName)}'`
+				);
+			})
+		);
+	};
+
+	const handleStatusCheck = (checkedIndex: number, statusName: string) => {
+		const updatedCheckedState = checkedStateStatus.map(
+			(checked: boolean, index: number) => {
+				if (index === checkedIndex) {
+					return !checked;
+				}
+
+				return checked;
+			}
+		);
+
+		setCheckedStateStatus(updatedCheckedState);
+
+		if (!checkedStateStatus[checkedIndex]) {
+			return checkItemStatus(statusName);
+		}
+
+		return uncheckItemStatus(statusName);
+	};
+
+	const onClickLabel = (currentFilterName: string) => {
+		if (statusFilterItems.includes(currentFilterName)) {
+			setFilterStatusCheck(
+				filterStatusCheck.filter((statusName: string) => {
+					return (
+						statusName !== `'${currentFilterName?.toLowerCase()}'`
+					);
+				})
+			);
+		}
+		else {
+			setFilterProductCheck(
+				filterProductCheck.filter((productName: string) => {
+					return productName !== `'${currentFilterName}'`;
+				})
+			);
+		}
+
+		setFilterCheckedLabel(
+			filterCheckedLabel.filter((filterNameActived: string) => {
+				return filterNameActived !== currentFilterName;
+			})
+		);
+
+		const updatedCheckedStateProduct = checkedStateProduct.map(
+			(checked: boolean, index: number) => {
+				const productName = itemProducts[index]?.[0]?.item;
+
+				if (currentFilterName === productName) {
+					return !checked;
+				}
+
+				return checked;
+			}
+		);
+
+		setCheckedStateProduct(updatedCheckedStateProduct);
+
+		const updatedCheckedStateStatus = checkedStateStatus.map(
+			(checked: boolean, index: number) => {
+				const statusName = itemStatus[index]?.[0]?.item;
+
+				if (currentFilterName === statusName) {
+					return !checked;
+				}
+
+				return checked;
+			}
+		);
+
+		setCheckedStateStatus(updatedCheckedStateStatus);
+	};
+
+	const setSortRule = () => {
+		sortByDate === 'desc' ? setSortByDate('asc') : setSortByDate('desc');
+	};
 
 	const title = `Claims (${totalCount})`;
+
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const updateCheckedProduct = (currentFilterName: string) => {
+		const isChecked = checkedStateProduct.map(
+			(checked: boolean, index: number) => {
+				const productName = itemProducts[index]?.[0]?.item;
+
+				if (currentFilterName === productName) {
+					return !checked;
+				}
+
+				return checked;
+			}
+		);
+
+		return setCheckedStateProduct(isChecked);
+	};
+
+	useEffect(() => {
+		type ActionType = {eventName: string};
+
+		const handler: LiferayOnAction<ActionType> = ({eventName}) => {
+			const hasDoubleClick = filterCheckedLabel.some(
+				(productName) => productName === eventName
+			);
+
+			if (!hasDoubleClick) {
+				setFilterCheckedLabel((prevFilterCheckedLabels: string[]) => [
+					...prevFilterCheckedLabels,
+					eventName,
+				]);
+				setFilterProductCheck((prevFilterProductsCheck: string[]) => [
+					...prevFilterProductsCheck,
+					`'${eventName}'`,
+				]);
+				setActiveFilter(false);
+
+				updateCheckedProduct(eventName);
+			}
+		};
+
+		Liferay.on<ActionType>('openSettingsFilterClaimsEvent', handler);
+
+		return () =>
+			Liferay.detach<ActionType>(
+				'openSettingsFilterClaimsEvent',
+				handler
+			);
+
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		productFilterItems,
+		checkedStateProduct,
+		updateCheckedProduct,
+		filterCheckedLabel,
+	]);
 
 	return (
 		<div className="px-3">
@@ -212,23 +601,178 @@ const ClaimsTable = () => {
 						<ClayInput.GroupItem prepend>
 							<ClayInput
 								onChange={handleChangeSearch}
-								onKeyDown={handleKeyDown}
 								placeholder="Search for..."
 								type="text"
 							/>
 						</ClayInput.GroupItem>
 
 						<ClayInput.GroupItem append shrink>
-							<ClayButton
-								displayType="secondary"
-								onClick={handleClick}
-								type="submit"
-							>
+							<ClayButton displayType="secondary" type="submit">
 								<ClayIcon symbol="search" />
 							</ClayButton>
 						</ClayInput.GroupItem>
+
+						<ClayButtonWithIcon
+							aria-label="Search"
+							displayType="secondary"
+							onClick={filterClick}
+							symbol="filter"
+							type="submit"
+						></ClayButtonWithIcon>
 					</ClayInput.Group>
 				</ClayForm.Group>
+			</div>
+
+			<div
+				className={classNames('mb-2 mr-3 ', {
+					'd-flex': !activeFilter,
+					'd-none': activeFilter,
+				})}
+			>
+				<div className="d-flex justify-content-center responsive-filter">
+					<div className="d-flex">
+						<ClayDropDown
+							className='"d-flex mr-3"'
+							trigger={
+								<ClayButton
+									className="btn-sm hover-button-dropdown mr-3 shadow-none text-neutral-8"
+									displayType="secondary"
+								>
+									Product
+									<ClayIcon symbol="caret-double-l" />
+								</ClayButton>
+							}
+						>
+							<ClayDropDown.ItemList className="border-neutral-6 ml-3 mt-2">
+								{productFilterItems.map(
+									(
+										productName: string,
+										checkedIndex: number
+									) => (
+										<ClayCheckbox
+											checked={
+												checkedStateProduct[
+													checkedIndex
+												]
+											}
+											key={checkedIndex}
+											label={
+												itemProducts[checkedIndex]?.[0]
+													?.item
+											}
+											onChange={() =>
+												handleProductCheck(
+													checkedIndex,
+													productName
+												)
+											}
+										/>
+									)
+								)}
+							</ClayDropDown.ItemList>
+						</ClayDropDown>
+
+						<ClayDropDown
+							className="mr-3"
+							trigger={
+								<ClayButton
+									className="btn-sm hover-button-dropdown mr-2 shadow-none text-neutral-8"
+									displayType="secondary"
+								>
+									Status
+									<ClayIcon symbol="caret-double-l" />
+								</ClayButton>
+							}
+						>
+							<ClayDropDown.ItemList className="border-neutral-6 ml-3 mt-2">
+								{statusFilterItems.map(
+									(
+										statusName: string,
+										checkedIndex: number
+									) => (
+										<ClayCheckbox
+											checked={
+												checkedStateStatus[checkedIndex]
+											}
+											key={checkedIndex}
+											label={
+												itemStatus[checkedIndex]?.[0]
+													?.item
+											}
+											onChange={() => {
+												handleStatusCheck(
+													checkedIndex,
+													statusName
+												);
+											}}
+										/>
+									)
+								)}
+							</ClayDropDown.ItemList>
+						</ClayDropDown>
+					</div>
+
+					<div
+						className={classNames(
+							'responsive-label flex-wrap w-100 align-items-center',
+							{
+								'd-flex': filterCheckedLabel.length,
+								'd-none': !filterCheckedLabel.length,
+							}
+						)}
+					>
+						{filterCheckedLabel.map(
+							(currentFilterName: string, index: number) => (
+								<ClayLabel
+									className="align-items-center d-flex justify-content-center label label-primary mr-2"
+									displayType="unstyled"
+									key={index}
+								>
+									<div className="align-items-center d-flex justify-content-center">
+										{`${currentFilterName}`}
+
+										<ClayIcon
+											className="cursor-pointer d-flex m-2"
+											onClick={() => {
+												onClickLabel(currentFilterName);
+											}}
+											symbol="times"
+										/>
+									</div>
+								</ClayLabel>
+							)
+						)}
+
+						<div>
+							<ClayButton
+								className="btn-sm hover-button shadow-none text-neutral-9"
+								onClick={() => {
+									const updatedCheckedProduct = checkedStateProduct.fill(
+										false
+									);
+
+									const updatedCheckedStatus = checkedStateStatus.fill(
+										false
+									);
+
+									setCheckedStateProduct(
+										updatedCheckedProduct
+									);
+									setCheckedStateStatus(updatedCheckedStatus);
+									setFilterCheckedLabel([]);
+									setFilterProductCheck([]);
+									setFilterStatusCheck([]);
+								}}
+							>
+								<ClayIcon
+									className="mr-1"
+									symbol="times-circle"
+								/>
+								Clear
+							</ClayButton>
+						</div>
+					</div>
+				</div>
 			</div>
 
 			<Table
@@ -241,6 +785,8 @@ const ClaimsTable = () => {
 				]}
 				data={dataClaims}
 				headers={HEADERS}
+				setSortByDate={setSortRule}
+				sortByDate={sortByDate}
 			/>
 
 			<div className="d-flex justify-content-between mt-3 px-3">

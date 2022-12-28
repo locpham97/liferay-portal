@@ -25,6 +25,7 @@ const noop = () => {};
 function AssetTagsSelector({
 	addCallback,
 	groupIds = [],
+	helpText = '',
 	id,
 	inputName,
 	inputValue,
@@ -34,6 +35,7 @@ function AssetTagsSelector({
 	portletURL,
 	removeCallback,
 	selectedItems = [],
+	showLabel = true,
 	showSelectButton,
 }) {
 	const selectButtonRef = useRef();
@@ -211,11 +213,21 @@ function AssetTagsSelector({
 	return (
 		<div className="lfr-tags-selector-content" id={id}>
 			<ClayForm.Group>
-				<label htmlFor={inputName + '_MultiSelect'}>{label}</label>
+				<label
+					className={showLabel ? '' : 'sr-only'}
+					htmlFor={inputName + '_MultiSelect'}
+				>
+					{label}
+				</label>
 
 				<ClayInput.Group>
 					<ClayInput.GroupItem>
 						<ClayMultiSelect
+							aria-describedby={
+								helpText
+									? `${inputName}_MultiSelectHelpText`
+									: undefined
+							}
 							id={inputName + '_MultiSelect'}
 							inputName={inputName}
 							items={selectedItems}
@@ -256,6 +268,15 @@ function AssetTagsSelector({
 						</ClayInput.GroupItem>
 					)}
 				</ClayInput.Group>
+
+				{helpText ? (
+					<p
+						className="m-0 mt-1 small text-secondary"
+						id={`${inputName}_MultiSelectHelpText`}
+					>
+						{helpText}
+					</p>
+				) : null}
 			</ClayForm.Group>
 		</div>
 	);
@@ -264,6 +285,7 @@ function AssetTagsSelector({
 AssetTagsSelector.propTypes = {
 	addCallback: PropTypes.string,
 	groupIds: PropTypes.array,
+	helpText: PropTypes.string,
 	id: PropTypes.string,
 	inputName: PropTypes.string,
 	inputValue: PropTypes.string,
@@ -273,6 +295,7 @@ AssetTagsSelector.propTypes = {
 	portletURL: PropTypes.string,
 	removeCallback: PropTypes.string,
 	selectedItems: PropTypes.array,
+	showLabel: PropTypes.bool,
 };
 
 export default AssetTagsSelector;

@@ -17,22 +17,29 @@ import {Outlet, useLocation, useParams} from 'react-router-dom';
 
 import {useFetch} from '../../hooks/useFetch';
 import useHeader from '../../hooks/useHeader';
+import useSearchBuilder from '../../hooks/useSearchBuilder';
 import i18n from '../../i18n';
-import {TestrayTask, testrayTaskImpl} from '../../services/rest';
+import {
+	APIResponse,
+	TestraySubTask,
+	TestrayTask,
+	TestrayTaskCaseTypes,
+	TestrayTaskUser,
+	testraySubTaskImpl,
+	testrayTaskImpl,
+	testrayTaskUsersImpl,
+} from '../../services/rest';
+import {testrayTaskCaseTypesImpl} from '../../services/rest/TestrayTaskCaseTypes';
+import {searchUtil} from '../../util/search';
+import {SubTaskStatuses} from '../../util/statuses';
 
-const TestflowOutlet = () => {
+const TestflowNavigationOutlet = () => {
 	const {pathname} = useLocation();
-	const {taskId} = useParams();
 
 	const currentPathIsActive = pathname === '/testflow';
 	const archivedPathIsActive = pathname === '/testflow/archived';
 
-	const {data: testrayTask, mutate: mutateTask} = useFetch<TestrayTask>(
-		taskId ? testrayTaskImpl.getResource(taskId) : null,
-		(response) => testrayTaskImpl.transformData(response)
-	);
-
-	const {setDropdownIcon, setHeading, setTabs} = useHeader({
+	const {setTabs} = useHeader({
 		shouldUpdate: currentPathIsActive || archivedPathIsActive,
 		useDropdown: [],
 		useHeaderActions: {
@@ -45,17 +52,6 @@ const TestflowOutlet = () => {
 			},
 		],
 	});
-
-	useEffect(() => {
-		if (testrayTask) {
-			setHeading([
-				{
-					category: i18n.translate('tasks'),
-					title: testrayTask.name,
-				},
-			]);
-		}
-	}, [setHeading, testrayTask]);
 
 	useEffect(() => {
 		setTabs([
@@ -72,17 +68,82 @@ const TestflowOutlet = () => {
 		]);
 	}, [archivedPathIsActive, currentPathIsActive, setTabs]);
 
+	return <Outlet />;
+};
+
+const TestflowOutlet = () => {
+	const params = useParams();
+
+	const taskId = params.taskId as string;
+
+	const {data: testrayTask, mutate: mutateTask} = useFetch<TestrayTask>(
+		testrayTaskImpl.getResource(taskId),
+		(response) => testrayTaskImpl.transformData(response)
+	);
+
+	const {data: testrayTaskCaseTypes} = useFetch<
+		APIResponse<TestrayTaskCaseTypes>
+	>(
+		`${testrayTaskCaseTypesImpl.resource}&filter=${searchUtil.eq(
+			'taskId',
+			taskId
+		)}`,
+		(response) => testrayTaskCaseTypesImpl.transformDataFromList(response)
+	);
+
+	const {data: testrayTaskUser, revalidate: revalidateTaskUser} = useFetch<
+		APIResponse<TestrayTaskUser>
+	>(
+		`${testrayTaskImpl.getNestedObject(
+			'taskToTasksUsers',
+			Number(taskId)
+		)}?nestedFields=task,user`,
+		(response) => testrayTaskUsersImpl.transformDataFromList(response)
+	);
+
+	const searchBuilder = useSearchBuilder({useURIEncode: false});
+
+	const subTaskFilter = searchBuilder
+		.eq('taskId', taskId)
+		.and()
+		.in('dueStatus', [
+			SubTaskStatuses.IN_ANALYSIS,
+			SubTaskStatuses.MERGED,
+			SubTaskStatuses.OPEN,
+		])
+		.build();
+
+	const {data: testraySubtasks, revalidate: revalidateSubtask} = useFetch<
+		APIResponse<TestraySubTask>
+	>(
+		`${testraySubTaskImpl.resource}&fields=id&filter=${subTaskFilter}&pageSize=1`
+	);
+
+	if (!testrayTask) {
+		return null;
+	}
+
 	return (
 		<Outlet
 			context={{
-				mutateTask,
-				setDropdownIcon,
-				setHeading,
-				setTabs,
-				testrayTask,
+				data: {
+					testraySubtasks,
+					testrayTask,
+					testrayTaskCaseTypes: testrayTaskCaseTypes?.items ?? [],
+					testrayTaskUser: testrayTaskUser?.items ?? [],
+				},
+				mutate: {
+					mutateTask,
+				},
+				revalidate: {
+					revalidateSubtask,
+					revalidateTaskUser,
+				},
 			}}
 		/>
 	);
 };
+
+export {TestflowNavigationOutlet};
 
 export default TestflowOutlet;

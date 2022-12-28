@@ -31,9 +31,12 @@ export default interface DealRegistrationDTO
 	additionalContacts?: string;
 	additionalInformationAboutTheOpportunity?: string;
 	amount?: number;
+	closeDate?: Date;
 	leadExternalReferenceCode?: string;
+	leadStatus?: string;
 	mdfActivityExternalReferenceCodeSF?: string;
 	opportunityOwner?: string;
+	ownerName?: string;
 	partnerAccountName?: string;
 	partnerEmail?: string;
 	partnerFirstName?: string;
@@ -63,5 +66,5 @@ export default interface DealRegistrationDTO
 	r_accountToDealRegistrations_accountEntryId?: number;
 	r_activityToDealRegistrations_c_activity?: MDFRequestActivity;
 	r_activityToDealRegistrations_c_activityId?: number;
-	stage?: StaticRangeInit;
+	stage?: string;
 }

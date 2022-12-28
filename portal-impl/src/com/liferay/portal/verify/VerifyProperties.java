@@ -21,7 +21,6 @@ import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.LoggingTimer;
 import com.liferay.portal.kernel.util.SystemProperties;
 import com.liferay.portal.util.PropsUtil;
-import com.liferay.portlet.documentlibrary.store.StoreFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -43,8 +42,6 @@ public class VerifyProperties {
 		verifySystemProperties();
 
 		List<String> keys = verifyPortalProperties();
-
-		verifyDocumentLibrary();
 
 		if (!keys.isEmpty()) {
 			_log.error(
@@ -110,14 +107,6 @@ public class VerifyProperties {
 		}
 
 		return properties;
-	}
-
-	protected static void verifyDocumentLibrary() {
-		try (LoggingTimer loggingTimer = new LoggingTimer()) {
-			StoreFactory storeFactory = StoreFactory.getInstance();
-
-			storeFactory.checkProperties();
-		}
 	}
 
 	protected static void verifyMigratedPortalProperty(
@@ -1915,7 +1904,11 @@ public class VerifyProperties {
 		"mail.hook.cyrus.delete.user", "mail.hook.cyrus.home",
 		"mail.hook.fusemail.account.type", "mail.hook.fusemail.group.parent",
 		"mail.hook.fusemail.password", "mail.hook.fusemail.url",
-		"mail.hook.fusemail.username",
+		"mail.hook.fusemail.username", "mail.hook.impl",
+		"mail.hook.sendmail.add.user", "mail.hook.sendmail.change.password",
+		"mail.hook.sendmail.delete.user", "mail.hook.sendmail.home",
+		"mail.hook.sendmail.virtusertable",
+		"mail.hook.sendmail.virtusertable.refresh", "mail.hook.shell.script",
 		"memory.cluster.scheduler.lock.cache.enabled",
 		"message.boards.email.message.added.signature",
 		"message.boards.email.message.updated.signature",
@@ -1955,6 +1948,7 @@ public class VerifyProperties {
 		"organizations.form.update.miscellaneous",
 		"organizations.indexer.enabled", "organizations.rootable",
 		"organizations.types", "permissions.object.blocking.cache",
+		"poller.notifications.timeout", "poller.request.timeout",
 		"portal.cache.manager.type.multi.vm",
 		"portal.cache.manager.type.single.vm", "portal.ctx",
 		"portal.fabric.enabled", "portal.fabric.agent.selector.class",

@@ -204,7 +204,7 @@ public class ObjectDefinitionLocalServiceTest {
 
 		ObjectDefinition objectDefinition =
 			_objectDefinitionLocalService.addCustomObjectDefinition(
-				TestPropsValues.getUserId(),
+				TestPropsValues.getUserId(), false,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
@@ -238,7 +238,7 @@ public class ObjectDefinitionLocalServiceTest {
 
 		try {
 			_objectDefinitionLocalService.addCustomObjectDefinition(
-				TestPropsValues.getUserId(),
+				TestPropsValues.getUserId(), false,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
@@ -262,7 +262,7 @@ public class ObjectDefinitionLocalServiceTest {
 
 		try {
 			_objectDefinitionLocalService.addCustomObjectDefinition(
-				TestPropsValues.getUserId(),
+				TestPropsValues.getUserId(), false,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
@@ -285,7 +285,7 @@ public class ObjectDefinitionLocalServiceTest {
 
 		objectDefinition =
 			_objectDefinitionLocalService.addCustomObjectDefinition(
-				TestPropsValues.getUserId(),
+				TestPropsValues.getUserId(), false,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
@@ -759,7 +759,7 @@ public class ObjectDefinitionLocalServiceTest {
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
-				ObjectDefinitionConstants.SCOPE_COMPANY, 1,
+				ObjectDefinitionConstants.SCOPE_COMPANY, null, 1,
 				Arrays.asList(
 					ObjectFieldUtil.createObjectField(
 						ObjectFieldConstants.BUSINESS_TYPE_TEXT,
@@ -787,7 +787,7 @@ public class ObjectDefinitionLocalServiceTest {
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
-				"", 1,
+				"", null, 1,
 				Arrays.asList(
 					ObjectFieldUtil.createObjectField(
 						ObjectFieldConstants.BUSINESS_TYPE_TEXT,
@@ -811,7 +811,7 @@ public class ObjectDefinitionLocalServiceTest {
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
-				scope, 1, Collections.<ObjectField>emptyList());
+				scope, null, 1, Collections.<ObjectField>emptyList());
 
 			Assert.fail();
 		}
@@ -829,7 +829,7 @@ public class ObjectDefinitionLocalServiceTest {
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
-				ObjectDefinitionConstants.SCOPE_COMPANY, -1,
+				ObjectDefinitionConstants.SCOPE_COMPANY, null, -1,
 				Collections.<ObjectField>emptyList());
 		}
 		catch (ObjectDefinitionVersionException
@@ -846,7 +846,7 @@ public class ObjectDefinitionLocalServiceTest {
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
-				ObjectDefinitionConstants.SCOPE_COMPANY, 0,
+				ObjectDefinitionConstants.SCOPE_COMPANY, null, 0,
 				Collections.<ObjectField>emptyList());
 		}
 		catch (ObjectDefinitionVersionException
@@ -865,7 +865,7 @@ public class ObjectDefinitionLocalServiceTest {
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
-				ObjectDefinitionConstants.SCOPE_COMPANY, 1,
+				ObjectDefinitionConstants.SCOPE_COMPANY, null, 1,
 				Collections.<ObjectField>emptyList());
 
 		_objectFieldLocalService.addCustomObjectField(
@@ -953,7 +953,7 @@ public class ObjectDefinitionLocalServiceTest {
 	public void testDeleteObjectDefinition() throws Exception {
 		ObjectDefinition objectDefinition =
 			_objectDefinitionLocalService.addCustomObjectDefinition(
-				TestPropsValues.getUserId(),
+				TestPropsValues.getUserId(), false,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
@@ -1010,7 +1010,7 @@ public class ObjectDefinitionLocalServiceTest {
 	public void testSystemObjectFields() throws Exception {
 		ObjectDefinition objectDefinition =
 			_objectDefinitionLocalService.addCustomObjectDefinition(
-				TestPropsValues.getUserId(),
+				TestPropsValues.getUserId(), false,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
@@ -1028,7 +1028,7 @@ public class ObjectDefinitionLocalServiceTest {
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				"Test", null, null,
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
-				ObjectDefinitionConstants.SCOPE_COMPANY, 1,
+				ObjectDefinitionConstants.SCOPE_COMPANY, null, 1,
 				Collections.<ObjectField>emptyList());
 
 		_testSystemObjectFields(objectDefinition);
@@ -1040,7 +1040,7 @@ public class ObjectDefinitionLocalServiceTest {
 	public void testUpdateCustomObjectDefinition() throws Exception {
 		ObjectDefinition objectDefinition =
 			_objectDefinitionLocalService.addCustomObjectDefinition(
-				TestPropsValues.getUserId(),
+				TestPropsValues.getUserId(), false,
 				LocalizedMapUtil.getLocalizedMap("Able"), "Able", null, null,
 				LocalizedMapUtil.getLocalizedMap("Ables"),
 				ObjectDefinitionConstants.SCOPE_COMPANY,
@@ -1073,7 +1073,7 @@ public class ObjectDefinitionLocalServiceTest {
 					objectDefinitionEnableObjectEntryHistoryException) {
 
 			Assert.assertEquals(
-				"Enable object entry history is allowed only for object " +
+				"Enable object entry history is only allowed for object " +
 					"definitions with the default storage type",
 				objectDefinitionEnableObjectEntryHistoryException.getMessage());
 		}
@@ -1333,7 +1333,7 @@ public class ObjectDefinitionLocalServiceTest {
 		try {
 			objectDefinition =
 				_objectDefinitionLocalService.addCustomObjectDefinition(
-					TestPropsValues.getUserId(),
+					TestPropsValues.getUserId(), false,
 					LocalizedMapUtil.getLocalizedMap(label), name, null, null,
 					LocalizedMapUtil.getLocalizedMap(pluralLabel),
 					ObjectDefinitionConstants.SCOPE_COMPANY,
@@ -1374,7 +1374,7 @@ public class ObjectDefinitionLocalServiceTest {
 					LocalizedMapUtil.getLocalizedMap(label), name, null, null,
 					LocalizedMapUtil.getLocalizedMap(
 						RandomTestUtil.randomString()),
-					ObjectDefinitionConstants.SCOPE_COMPANY, 1,
+					ObjectDefinitionConstants.SCOPE_COMPANY, null, 1,
 					Arrays.asList(
 						ObjectFieldUtil.createObjectField(
 							ObjectFieldConstants.BUSINESS_TYPE_TEXT,

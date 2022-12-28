@@ -18,7 +18,9 @@ import com.liferay.exportimport.kernel.model.ExportImportConfiguration;
 import com.liferay.exportimport.kernel.service.ExportImportLocalService;
 import com.liferay.exportimport.kernel.staging.MergeLayoutPrototypesThreadLocal;
 import com.liferay.layout.set.prototype.configuration.LayoutSetPrototypeConfiguration;
+import com.liferay.layout.set.prototype.configuration.LayoutSetPrototypeSystemConfiguration;
 import com.liferay.petra.string.StringBundler;
+import com.liferay.portal.configuration.metatype.bnd.util.ConfigurableUtil;
 import com.liferay.portal.kernel.backgroundtask.BackgroundTask;
 import com.liferay.portal.kernel.backgroundtask.BackgroundTaskExecutor;
 import com.liferay.portal.kernel.backgroundtask.BackgroundTaskManager;
@@ -30,16 +32,16 @@ import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.LayoutSet;
 import com.liferay.portal.kernel.model.LayoutSetPrototype;
 import com.liferay.portal.kernel.module.configuration.ConfigurationException;
-import com.liferay.portal.kernel.module.configuration.ConfigurationProviderUtil;
+import com.liferay.portal.kernel.module.configuration.ConfigurationProvider;
 import com.liferay.portal.kernel.repository.model.FileEntry;
 import com.liferay.portal.kernel.security.auth.CompanyThreadLocal;
 import com.liferay.portal.kernel.service.LayoutSetLocalService;
 import com.liferay.portal.kernel.service.LayoutSetPrototypeLocalService;
 import com.liferay.portal.kernel.transaction.TransactionInvokerUtil;
-import com.liferay.portal.kernel.util.FileUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
+import com.liferay.portal.kernel.util.Validator;
 import com.liferay.sites.kernel.util.Sites;
 
 import java.io.File;
@@ -49,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
+import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 
@@ -56,20 +59,12 @@ import org.osgi.service.component.annotations.Reference;
  * @author Tamas Molnar
  */
 @Component(
+	configurationPid = "com.liferay.layout.set.prototype.configuration.LayoutSetPrototypeSystemConfiguration",
 	property = "background.task.executor.class.name=com.liferay.exportimport.internal.background.task.LayoutSetPrototypeImportBackgroundTaskExecutor",
 	service = BackgroundTaskExecutor.class
 )
 public class LayoutSetPrototypeImportBackgroundTaskExecutor
 	extends BaseExportImportBackgroundTaskExecutor {
-
-	public LayoutSetPrototypeImportBackgroundTaskExecutor() {
-		setBackgroundTaskStatusMessageTranslator(
-			new LayoutExportImportBackgroundTaskStatusMessageTranslator());
-
-		// Isolation level guarantees this will be serial in a group
-
-		setIsolationLevel(BackgroundTaskConstants.ISOLATION_LEVEL_GROUP);
-	}
 
 	@Override
 	public BackgroundTaskExecutor clone() {
@@ -127,9 +122,9 @@ public class LayoutSetPrototypeImportBackgroundTaskExecutor
 
 		for (FileEntry attachmentsFileEntry : attachmentsFileEntries) {
 			try {
-				file = FileUtil.createTempFile("lar");
+				file = _file.createTempFile("lar");
 
-				FileUtil.write(file, attachmentsFileEntry.getContentStream());
+				_file.write(file, attachmentsFileEntry.getContentStream());
 
 				TransactionInvokerUtil.invoke(
 					transactionConfig,
@@ -177,11 +172,34 @@ public class LayoutSetPrototypeImportBackgroundTaskExecutor
 			finally {
 				MergeLayoutPrototypesThreadLocal.setInProgress(false);
 
-				FileUtil.delete(file);
+				_file.delete(file);
 			}
 		}
 
 		return BackgroundTaskResult.SUCCESS;
+	}
+
+	@Activate
+	protected void activate(Map<String, Object> properties) {
+		setBackgroundTaskStatusMessageTranslator(
+			new LayoutExportImportBackgroundTaskStatusMessageTranslator());
+
+		LayoutSetPrototypeSystemConfiguration
+			layoutSetPrototypeSystemConfiguration =
+				ConfigurableUtil.createConfigurable(
+					LayoutSetPrototypeSystemConfiguration.class, properties);
+
+		String importTaskIsolation =
+			layoutSetPrototypeSystemConfiguration.importTaskIsolation();
+
+		if (Validator.isNotNull(importTaskIsolation) &&
+			importTaskIsolation.equals("company")) {
+
+			setIsolationLevel(BackgroundTaskConstants.ISOLATION_LEVEL_COMPANY);
+		}
+		else {
+			setIsolationLevel(BackgroundTaskConstants.ISOLATION_LEVEL_GROUP);
+		}
 	}
 
 	protected boolean isCancelPropagationImportTask() {
@@ -208,7 +226,7 @@ public class LayoutSetPrototypeImportBackgroundTaskExecutor
 		_getLayoutSetPrototypeConfiguration() {
 
 		try {
-			return ConfigurationProviderUtil.getCompanyConfiguration(
+			return _configurationProvider.getCompanyConfiguration(
 				LayoutSetPrototypeConfiguration.class,
 				CompanyThreadLocal.getCompanyId());
 		}
@@ -228,7 +246,13 @@ public class LayoutSetPrototypeImportBackgroundTaskExecutor
 	private BackgroundTaskManager _backgroundTaskManager;
 
 	@Reference
+	private ConfigurationProvider _configurationProvider;
+
+	@Reference
 	private ExportImportLocalService _exportImportLocalService;
+
+	@Reference
+	private com.liferay.portal.kernel.util.File _file;
 
 	@Reference
 	private LayoutSetLocalService _layoutSetLocalService;

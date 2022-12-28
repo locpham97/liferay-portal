@@ -12,7 +12,7 @@ Here are some of the types of changes documented in this file:
 * Execution requirements: Java version, J2EE Version, browser versions, etc.
 * Deprecations or end of support: For example, warning that a certain feature or API will be dropped in an upcoming version.
 
-*This document has been reviewed through the breaking change entry at commit `90502b5fc445441164332bdb2317533d1c0c4164`.*
+*This document has been reviewed through the breaking change entry at commit `62dc43e1cc4c4b81ef5bcae459dbc0cbeff9f1fe`.*
 
 Each change must have a brief descriptive title and contain the following information:
 
@@ -1219,16 +1219,39 @@ Delete implementations of `ConfigurationBeanDeclaration` and remove references t
 
 ### What changed?
 
-Because <aui:fieldset-group> and <liferay-frontend:fieldset-group> are no longer needed.
+`FieldSetGroupTag` was removed because `<aui:fieldset-group>` and `<liferay-frontend:fieldset-group>` are no longer needed.
 
 ### Who is affected?
 
-Anyone who has using <aui:fieldset-group> and <liferay-frontend:fieldset-group>.
+Anyone using `<aui:fieldset-group>` or `<liferay-frontend:fieldset-group>`.
 
 ### How should I update my code?
 
-Delete usages of <liferay-frontend:fieldset-group> and replace usages <aui:fieldset-group> with <div class="sheet"><div class="panel-group panel-group-flush">.
+Delete usages of `<liferay-frontend:fieldset-group>` and replace usages of `<aui:fieldset-group>` with `<div class="sheet"><div class="panel-group panel-group-flush">`.
 
 ### Why was this change made?
 
-<aui:fieldset-group> and <liferay-frontend:fieldset-group> were adding unnecessary markup to the page and those were causing accessibility issues.
+The tags `<aui:fieldset-group>` and `<liferay-frontend:fieldset-group>` added unnecessary markup to the page and caused accessibility issues.
+
+---------------------------------------
+
+## Removed ContainerTag
+
+- **Date:** 2022-Dec-22
+- **JIRA Ticket:** [LPS-166546](https://issues.liferay.com/browse/LPS-166546)
+
+### What changed?
+
+`ContainerTag` was removed, and with it the `<aui:container>` tag. The tag was also removed from the [AUI tld](https://learn.liferay.com/reference/latest/en/dxp/taglibs/util-taglib/aui/tld-summary.html).
+
+### Who is affected?
+
+Anyone using `<aui:container>`.
+
+### How should I update my code?
+
+Replace usages of `<aui:container>` with `<clay:container>`.
+
+### Why was this change made?
+
+The tag `<aui:container>` was deprecated in a previous version.

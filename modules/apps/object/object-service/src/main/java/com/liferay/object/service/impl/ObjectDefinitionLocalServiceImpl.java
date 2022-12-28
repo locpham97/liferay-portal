@@ -151,16 +151,16 @@ public class ObjectDefinitionLocalServiceImpl
 	@Indexable(type = IndexableType.REINDEX)
 	@Override
 	public ObjectDefinition addCustomObjectDefinition(
-			long userId, Map<Locale, String> labelMap, String name,
-			String panelAppOrder, String panelCategoryKey,
+			long userId, boolean enableComments, Map<Locale, String> labelMap,
+			String name, String panelAppOrder, String panelCategoryKey,
 			Map<Locale, String> pluralLabelMap, String scope,
 			String storageType, List<ObjectField> objectFields)
 		throws PortalException {
 
 		return _addObjectDefinition(
-			userId, null, null, labelMap, name, panelAppOrder, panelCategoryKey,
-			null, null, pluralLabelMap, scope, storageType, false, 0,
-			WorkflowConstants.STATUS_DRAFT, objectFields);
+			userId, null, null, enableComments, labelMap, name, panelAppOrder,
+			panelCategoryKey, null, null, pluralLabelMap, scope, storageType,
+			false, null, 0, WorkflowConstants.STATUS_DRAFT, objectFields);
 	}
 
 	@Indexable(type = IndexableType.REINDEX)
@@ -181,7 +181,9 @@ public class ObjectDefinitionLocalServiceImpl
 		objectDefinition.setUserName(user.getFullName());
 
 		objectDefinition.setActive(false);
+		objectDefinition.setLabel(externalReferenceCode);
 		objectDefinition.setName(externalReferenceCode);
+		objectDefinition.setPluralLabel(externalReferenceCode);
 		objectDefinition.setStorageType(
 			ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT);
 		objectDefinition.setSystem(false);
@@ -199,7 +201,7 @@ public class ObjectDefinitionLocalServiceImpl
 			ObjectEntryTable.INSTANCE.objectEntryId.getName(),
 			objectDefinition.isSystem(), userId);
 
-		return objectDefinition;
+		return _updateTitleObjectFieldId(objectDefinition, null);
 	}
 
 	@Indexable(type = IndexableType.REINDEX)
@@ -228,6 +230,7 @@ public class ObjectDefinitionLocalServiceImpl
 				primaryKeyColumn.getName(), primaryKeyColumn.getName(),
 				systemObjectDefinitionMetadata.getPluralLabelMap(),
 				systemObjectDefinitionMetadata.getScope(),
+				systemObjectDefinitionMetadata.getTitleObjectFieldName(),
 				systemObjectDefinitionMetadata.getVersion(),
 				systemObjectDefinitionMetadata.getObjectFields());
 		}
@@ -290,15 +293,17 @@ public class ObjectDefinitionLocalServiceImpl
 			long userId, String className, String dbTableName,
 			Map<Locale, String> labelMap, String name,
 			String pkObjectFieldDBColumnName, String pkObjectFieldName,
-			Map<Locale, String> pluralLabelMap, String scope, int version,
+			Map<Locale, String> pluralLabelMap, String scope,
+			String titleObjectFieldName, int version,
 			List<ObjectField> objectFields)
 		throws PortalException {
 
 		return _addObjectDefinition(
-			userId, className, dbTableName, labelMap, name, null, null,
+			userId, className, dbTableName, false, labelMap, name, null, null,
 			pkObjectFieldDBColumnName, pkObjectFieldName, pluralLabelMap, scope,
-			ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT, true, version,
-			WorkflowConstants.STATUS_APPROVED, objectFields);
+			ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT, true,
+			titleObjectFieldName, version, WorkflowConstants.STATUS_APPROVED,
+			objectFields);
 	}
 
 	@Override
@@ -802,11 +807,12 @@ public class ObjectDefinitionLocalServiceImpl
 
 	private ObjectDefinition _addObjectDefinition(
 			long userId, String className, String dbTableName,
-			Map<Locale, String> labelMap, String name, String panelAppOrder,
-			String panelCategoryKey, String pkObjectFieldDBColumnName,
-			String pkObjectFieldName, Map<Locale, String> pluralLabelMap,
-			String scope, String storageType, boolean system, int version,
-			int status, List<ObjectField> objectFields)
+			boolean enableComments, Map<Locale, String> labelMap, String name,
+			String panelAppOrder, String panelCategoryKey,
+			String pkObjectFieldDBColumnName, String pkObjectFieldName,
+			Map<Locale, String> pluralLabelMap, String scope,
+			String storageType, boolean system, String titleObjectFieldName,
+			int version, int status, List<ObjectField> objectFields)
 		throws PortalException {
 
 		User user = _userLocalService.getUser(userId);
@@ -826,6 +832,8 @@ public class ObjectDefinitionLocalServiceImpl
 
 		storageType = Validator.isNotNull(storageType) ? storageType :
 			ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT;
+
+		_validateEnableComments(enableComments, storageType, system);
 
 		_validateLabel(labelMap);
 		_validateName(0, user.getCompanyId(), name, system);
@@ -848,6 +856,7 @@ public class ObjectDefinitionLocalServiceImpl
 			!system &&
 			StringUtil.equals(
 				storageType, ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT));
+		objectDefinition.setEnableComments(enableComments);
 		objectDefinition.setLabelMap(labelMap, LocaleUtil.getSiteDefault());
 		objectDefinition.setName(name);
 		objectDefinition.setPanelAppOrder(panelAppOrder);
@@ -908,6 +917,9 @@ public class ObjectDefinitionLocalServiceImpl
 				}
 			}
 		}
+
+		objectDefinition = _updateTitleObjectFieldId(
+			objectDefinition, titleObjectFieldName);
 
 		if (system) {
 			_createTable(
@@ -1264,6 +1276,25 @@ public class ObjectDefinitionLocalServiceImpl
 		return objectDefinition;
 	}
 
+	private ObjectDefinition _updateTitleObjectFieldId(
+			ObjectDefinition objectDefinition, String titleObjectFieldName)
+		throws PortalException {
+
+		if (Validator.isNull(titleObjectFieldName)) {
+			titleObjectFieldName = "id";
+		}
+
+		ObjectField objectField = _objectFieldPersistence.findByODI_N(
+			objectDefinition.getObjectDefinitionId(), titleObjectFieldName);
+
+		_validateObjectFieldId(
+			objectDefinition, objectField.getObjectFieldId());
+
+		objectDefinition.setTitleObjectFieldId(objectField.getObjectFieldId());
+
+		return objectDefinitionPersistence.update(objectDefinition);
+	}
+
 	private void _updateWorkflowInstances(ObjectDefinition objectDefinition)
 		throws PortalException {
 
@@ -1355,7 +1386,7 @@ public class ObjectDefinitionLocalServiceImpl
 				storageType, ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT)) {
 
 			throw new ObjectDefinitionEnableCategorizationException(
-				"Enable categorization is allowed only for object " +
+				"Enable categorization is only allowed for object " +
 					"definitions with the default storage type");
 		}
 	}
@@ -1374,7 +1405,7 @@ public class ObjectDefinitionLocalServiceImpl
 				storageType, ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT)) {
 
 			throw new ObjectDefinitionEnableCategorizationException(
-				"Enable comments is allowed only for object definitions with " +
+				"Enable comments is only allowed for object definitions with " +
 					"the default storage type");
 		}
 	}
@@ -1398,7 +1429,7 @@ public class ObjectDefinitionLocalServiceImpl
 				storageType, ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT)) {
 
 			throw new ObjectDefinitionEnableObjectEntryHistoryException(
-				"Enable object entry history is allowed only for object " +
+				"Enable object entry history is only allowed for object " +
 					"definitions with the default storage type");
 		}
 

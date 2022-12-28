@@ -12,52 +12,57 @@
  * details.
  */
 
+import {useEffect} from 'react';
 import {useForm} from 'react-hook-form';
-import {useOutletContext} from 'react-router-dom';
-import {KeyedMutator} from 'swr';
 
 import Form from '../../../components/Form';
 import Container from '../../../components/Layout/Container';
 import Modal from '../../../components/Modal';
 import {withVisibleContent} from '../../../hoc/withVisibleContent';
+import {useFetch} from '../../../hooks/useFetch';
 import {FormModalOptions} from '../../../hooks/useFormModal';
 import i18n from '../../../i18n';
 import yupSchema, {yupResolver} from '../../../schema/yup';
+import {Liferay} from '../../../services/liferay';
 import {
 	TestraySubTask,
 	TestraySubTaskIssue,
-	TestrayTask,
+	liferayMessageBoardImpl,
 	testraySubTaskImpl,
 } from '../../../services/rest';
+import {testraySubtaskIssuesImpl} from '../../../services/rest/TestraySubtaskIssues';
+import {searchUtil} from '../../../util/search';
 import {CaseResultStatuses} from '../../../util/statuses';
 
 type SubtaskForm = typeof yupSchema.subtask.__outputType;
 
 type SubTaskCompleteModalProps = {
 	modal: FormModalOptions;
-	mutate?: KeyedMutator<any>;
+	revalidateSubtask: () => void;
 	subtask: TestraySubTask;
-};
-
-type OutletContext = {
-	mergedSubtaskNames: string;
-	mutateSubtask: KeyedMutator<any>;
-	mutateSubtaskIssues: KeyedMutator<TestraySubTask>;
-	subtaskIssues: TestraySubTaskIssue[];
-	testraySubtask: TestraySubTask;
-	testrayTask: TestrayTask;
 };
 
 const SubtaskCompleteModal: React.FC<SubTaskCompleteModalProps> = ({
 	modal: {observer, onClose, onError, onSave},
+	revalidateSubtask,
 	subtask,
 }) => {
 	const {
-		mutateSubtask,
-		mutateSubtaskIssues,
-		subtaskIssues = [],
-		testraySubtask,
-	} = useOutletContext<OutletContext>();
+		data: subTaskIssuesResponse,
+		revalidate: revalidateSubtaskIssues,
+	} = useFetch(
+		`${testraySubtaskIssuesImpl.resource}&filter=${searchUtil.eq(
+			'subtaskId',
+			subtask.id
+		)}`,
+		(response) => testraySubtaskIssuesImpl.transformDataFromList(response)
+	);
+
+	const {data: mbMessage} = useFetch(
+		liferayMessageBoardImpl.getMessagesIdURL(subtask.mbMessageId)
+	);
+
+	const subtaskIssues = subTaskIssuesResponse?.items || [];
 
 	const issues = subtaskIssues
 		.map((subtaskIssue: TestraySubTaskIssue) => subtaskIssue?.issue?.name)
@@ -67,30 +72,39 @@ const SubtaskCompleteModal: React.FC<SubTaskCompleteModalProps> = ({
 		formState: {errors},
 		handleSubmit,
 		register,
+		setValue,
 	} = useForm<SubtaskForm>({
-		defaultValues: testraySubtask?.dueStatus
-			? ({dueStatus: CaseResultStatuses.FAILED, issues} as any)
-			: {dueStatus: CaseResultStatuses.FAILED},
+		defaultValues: {
+			dueStatus: CaseResultStatuses.FAILED,
+		},
 		resolver: yupResolver(yupSchema.subtask),
 	});
 
-	const _onSubmit = ({dueStatus, issues = ''}: SubtaskForm) => {
+	const _onSubmit = ({comment, dueStatus, issues = ''}: SubtaskForm) => {
 		const _issues = issues
 			.split(',')
 			.map((name) => name.trim())
 			.filter(Boolean);
 
+		const commentSubtask = {
+			comment,
+			mbMessageId: subtask.mbMessageId,
+			mbThreadId: subtask.mbThreadId,
+			userId: Number(Liferay.ThemeDisplay.getUserId()),
+		};
+
 		testraySubTaskImpl
-			.complete(
-				testraySubtask.id || subtask.id,
-				dueStatus as string,
-				_issues
-			)
-			.then(mutateSubtask)
-			.then(mutateSubtaskIssues)
-			.then(() => onSave())
-			.catch(() => onError);
+			.complete(dueStatus as string, _issues, commentSubtask, subtask?.id)
+			.then(revalidateSubtask)
+			.then(revalidateSubtaskIssues)
+			.then(onSave)
+			.catch(onError);
 	};
+
+	useEffect(() => {
+		setValue('comment', mbMessage?.articleBody);
+		setValue('issues', issues);
+	}, [issues, mbMessage, setValue]);
 
 	const inputProps = {
 		errors,

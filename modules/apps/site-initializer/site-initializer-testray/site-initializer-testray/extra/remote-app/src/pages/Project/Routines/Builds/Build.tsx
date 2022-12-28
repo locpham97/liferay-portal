@@ -12,6 +12,7 @@
  * details.
  */
 
+import {useEffect} from 'react';
 import {useParams} from 'react-router-dom';
 
 import Avatar from '../../../../components/Avatar';
@@ -22,6 +23,7 @@ import ListViewRest from '../../../../components/ListView';
 import StatusBadge from '../../../../components/StatusBadge';
 import {StatusBadgeType} from '../../../../components/StatusBadge/StatusBadge';
 import useMutate from '../../../../hooks/useMutate';
+import useRuns from '../../../../hooks/useRuns';
 import i18n from '../../../../i18n';
 import {filters} from '../../../../schema/filter';
 import {
@@ -29,13 +31,31 @@ import {
 	TestrayCaseResult,
 	testrayCaseResultImpl,
 } from '../../../../services/rest';
-import {searchUtil} from '../../../../util/search';
+import {SearchBuilder} from '../../../../util/search';
 import useBuildTestActions from './useBuildTestActions';
 
 const Build = () => {
 	const {buildId} = useParams();
 	const {updateItemFromList} = useMutate();
 	const {actions, form} = useBuildTestActions();
+	const {
+		compareRuns: {runId},
+		setRunId,
+	} = useRuns();
+
+	useEffect(() => {
+		return () => setRunId(null);
+	}, [setRunId]);
+
+	const caseResultFilter = new SearchBuilder();
+
+	const filter = runId
+		? caseResultFilter
+				.eq('buildId', buildId as string)
+				.and()
+				.eq('runId', runId)
+				.build()
+		: caseResultFilter.eq('buildId', buildId as string).build();
 
 	return (
 		<Container className="mt-4">
@@ -138,6 +158,7 @@ const Build = () => {
 						},
 						{
 							key: 'issues',
+							size: 'lg',
 							value: i18n.translate('issues'),
 						},
 						{
@@ -149,14 +170,20 @@ const Build = () => {
 							size: 'xl',
 							value: i18n.translate('errors'),
 						},
+						{
+							key: 'comment',
+							size: 'lg',
+							value: i18n.translate('comment'),
+						},
 					],
 					navigateTo: ({id}) => `case-result/${id}`,
+					rowWrap: true,
 				}}
 				transformData={(response) =>
 					testrayCaseResultImpl.transformDataFromList(response)
 				}
 				variables={{
-					filter: searchUtil.eq('buildId', buildId as string),
+					filter,
 				}}
 			/>
 		</Container>

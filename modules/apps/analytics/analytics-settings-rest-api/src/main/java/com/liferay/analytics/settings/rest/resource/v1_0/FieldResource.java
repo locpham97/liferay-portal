@@ -60,11 +60,23 @@ public interface FieldResource {
 
 	public void patchFieldAccount(Field[] fields) throws Exception;
 
+	public Page<Field> getFieldsOrdersPage(
+			String keyword, Pagination pagination, Sort[] sorts)
+		throws Exception;
+
+	public void patchFieldOrder(Field[] fields) throws Exception;
+
 	public Page<Field> getFieldsPeoplePage(
 			String keyword, Pagination pagination, Sort[] sorts)
 		throws Exception;
 
 	public void patchFieldPeople(Field[] fields) throws Exception;
+
+	public Page<Field> getFieldsProductsPage(
+			String keyword, Pagination pagination, Sort[] sorts)
+		throws Exception;
+
+	public void patchFieldProduct(Field[] fields) throws Exception;
 
 	public default void setContextAcceptLanguage(
 		AcceptLanguage contextAcceptLanguage) {

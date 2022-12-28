@@ -3475,6 +3475,8 @@ definition {
 
 		Button.clickSubmitForPublication();
 
+		Alert.viewSuccessMessage();
+
 		Navigator.openURL();
 
 		ObjectAdmin.goToCustomObject(objectName = "CustomObject85");
@@ -8467,8 +8469,6 @@ definition {
 	@description = "LPS-139005 - Verify that the Relationship tab is no longer displayed when the child object is inactivated (One to Many)"
 	@priority = "4"
 	test RelationshipTabDisappearsWhenInactivatedOneToMany {
-		property portal.upstream = "quarantine";
-
 		for (var letter : list "A,B") {
 			ObjectAdmin.addObjectViaAPI(
 				labelName = "Custom Object ${letter} 174",
@@ -8979,6 +8979,8 @@ definition {
 			fieldValue = "Entry Test");
 
 		Button.clickSubmitForPublication();
+
+		Alert.viewSuccessMessage();
 
 		Navigator.openURL();
 

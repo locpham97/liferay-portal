@@ -31,6 +31,7 @@ page import="com.liferay.portal.kernel.util.Constants" %><%@
 page import="com.liferay.portal.kernel.util.HashMapBuilder" %><%@
 page import="com.liferay.portal.kernel.util.StringUtil" %><%@
 page import="com.liferay.portal.search.web.internal.category.facet.configuration.CategoryFacetPortletInstanceConfiguration" %><%@
+page import="com.liferay.portal.search.web.internal.category.facet.portlet.CategoryFacetPortlet" %><%@
 page import="com.liferay.portal.search.web.internal.category.facet.portlet.CategoryFacetPortletPreferences" %><%@
 page import="com.liferay.portal.search.web.internal.category.facet.portlet.CategoryFacetPortletPreferencesImpl" %><%@
 page import="com.liferay.portal.search.web.internal.facet.display.context.AssetCategoriesSearchFacetDisplayContext" %><%@
@@ -65,7 +66,7 @@ CategoryFacetPortletPreferences categoryFacetPortletPreferences = new CategoryFa
 		>
 			<div class="display-template">
 				<liferay-template:template-selector
-					className="<%= AssetCategoriesSearchFacetDisplayContext.class.getName() %>"
+					className="<%= CategoryFacetPortlet.class.getName() %>"
 					displayStyle="<%= categoryFacetPortletInstanceConfiguration.displayStyle() %>"
 					displayStyleGroupId="<%= assetCategoriesSearchFacetDisplayContext.getDisplayStyleGroupId() %>"
 					refreshURL="<%= configurationRenderURL %>"
@@ -83,6 +84,13 @@ CategoryFacetPortletPreferences categoryFacetPortletPreferences = new CategoryFa
 			<aui:input label="max-terms" name="<%= PortletPreferencesJspUtil.getInputName(CategoryFacetPortletPreferences.PREFERENCE_KEY_MAX_TERMS) %>" value="<%= categoryFacetPortletPreferences.getMaxTerms() %>" />
 
 			<aui:input label="frequency-threshold" name="<%= PortletPreferencesJspUtil.getInputName(CategoryFacetPortletPreferences.PREFERENCE_KEY_FREQUENCY_THRESHOLD) %>" value="<%= categoryFacetPortletPreferences.getFrequencyThreshold() %>" />
+
+			<aui:select label="order-terms-by" name="<%= PortletPreferencesJspUtil.getInputName(CategoryFacetPortletPreferences.PREFERENCE_KEY_ORDER) %>" value="<%= categoryFacetPortletPreferences.getOrder() %>">
+				<aui:option label="term-frequency-descending" value="count:desc" />
+				<aui:option label="term-frequency-ascending" value="count:asc" />
+				<aui:option label="term-value-ascending" value="key:asc" />
+				<aui:option label="term-value-descending" value="key:desc" />
+			</aui:select>
 
 			<aui:input label="display-frequencies" name="<%= PortletPreferencesJspUtil.getInputName(CategoryFacetPortletPreferences.PREFERENCE_KEY_FREQUENCIES_VISIBLE) %>" type="checkbox" value="<%= categoryFacetPortletPreferences.isFrequenciesVisible() %>" />
 

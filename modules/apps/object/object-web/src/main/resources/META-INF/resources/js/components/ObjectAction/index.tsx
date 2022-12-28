@@ -39,19 +39,60 @@ const TABS = [
 	Liferay.Language.get('action-builder'),
 ];
 
+interface ActionProps {
+	isApproved?: boolean;
+	objectAction: Partial<ObjectAction>;
+	objectActionCodeEditorElements: SidebarCategory[];
+	objectActionExecutors: CustomItem[];
+	objectActionTriggers: CustomItem[];
+	objectDefinitionExternalReferenceCode: string;
+	objectDefinitionId: number;
+	objectDefinitionsRelationshipsURL: string;
+	readOnly?: boolean;
+	requestParams: {
+		method: 'POST' | 'PUT';
+		url: string;
+	};
+	successMessage: string;
+	systemObject: boolean;
+	title: string;
+	validateExpressionURL: string;
+}
+
+interface ErrorMessage {
+	fieldName: keyof ObjectAction;
+	message?: string;
+	messages?: ErrorMessage[];
+}
+
+interface Error {
+	[key: string]: string | Error;
+}
+
+interface IUseObjectActionForm {
+	initialValues: Partial<ObjectAction>;
+	onSubmit: (field: ObjectAction) => void;
+}
+
+export type ActionError = FormError<ObjectAction & ObjectActionParameters> & {
+	predefinedValues?: {[key: string]: string};
+};
+
 export default function Action({
 	isApproved,
 	objectAction: initialValues,
 	objectActionCodeEditorElements,
 	objectActionExecutors,
 	objectActionTriggers,
+	objectDefinitionExternalReferenceCode,
 	objectDefinitionId,
 	objectDefinitionsRelationshipsURL,
 	readOnly,
 	requestParams: {method, url},
 	successMessage,
+	systemObject,
 	validateExpressionURL,
-}: IProps) {
+}: ActionProps) {
 	const [backEndErrors, setBackEndErrors] = useState<Error>({});
 
 	const onSubmit = async (objectAction: ObjectAction) => {
@@ -169,6 +210,9 @@ export default function Action({
 						}
 						objectActionExecutors={objectActionExecutors}
 						objectActionTriggers={objectActionTriggers}
+						objectDefinitionExternalReferenceCode={
+							objectDefinitionExternalReferenceCode
+						}
 						objectDefinitionId={
 							objectDefinitionId ??
 							initialValues.objectDefinitionId
@@ -177,6 +221,7 @@ export default function Action({
 							objectDefinitionsRelationshipsURL
 						}
 						setValues={setValues}
+						systemObject={systemObject}
 						validateExpressionURL={validateExpressionURL}
 						values={values}
 					/>
@@ -236,8 +281,8 @@ function useObjectActionForm({initialValues, onSubmit}: IUseObjectActionForm) {
 			);
 		}
 		else if (values.objectActionExecutorKey === 'add-object-entry') {
-			if (!values.parameters?.objectDefinitionId) {
-				errors.objectDefinitionId = REQUIRED_MSG;
+			if (!values.parameters?.objectDefinitionExternalReferenceCode) {
+				errors.objectDefinitionExternalReferenceCode = REQUIRED_MSG;
 			}
 		}
 
@@ -261,7 +306,8 @@ function useObjectActionForm({initialValues, onSubmit}: IUseObjectActionForm) {
 				});
 			}
 		}
-		else if (
+
+		if (
 			values.objectActionTriggerKey === 'standalone' &&
 			invalidateRequired(values.errorMessage?.[defaultLanguageId])
 		) {
@@ -295,61 +341,29 @@ function useObjectActionForm({initialValues, onSubmit}: IUseObjectActionForm) {
 	});
 
 	useEffect(() => {
-		if (values.parameters?.objectDefinitionId) {
-			API.getObjectFields(values.parameters.objectDefinitionId).then(
-				(fields) => {
-					const filteredFields = fields.filter(
-						({businessType, system}) =>
-							businessType !== 'Aggregation' &&
-							businessType !== 'Relationship' &&
-							!system
-					);
+		if (values.parameters?.objectDefinitionExternalReferenceCode) {
+			const makeFetch = async () => {
+				const response = await API.getObjectFieldsByExternalReferenceCode(
+					values.parameters
+						?.objectDefinitionExternalReferenceCode as string
+				);
 
-					setFields(filteredFields);
-				}
-			);
+				const filteredFields = response.filter(
+					({businessType, system}) =>
+						businessType !== 'Aggregation' &&
+						businessType !== 'Relationship' &&
+						!system
+				);
+
+				setFields(filteredFields);
+			};
+
+			makeFetch();
 		}
 		else {
 			setFields([]);
 		}
-	}, [values.parameters?.objectDefinitionId]);
+	}, [values.parameters?.objectDefinitionExternalReferenceCode]);
 
 	return {errors: errors as ActionError, values, ...otherProps};
 }
-
-interface IProps {
-	isApproved?: boolean;
-	objectAction: Partial<ObjectAction>;
-	objectActionCodeEditorElements: SidebarCategory[];
-	objectActionExecutors: CustomItem[];
-	objectActionTriggers: CustomItem[];
-	objectDefinitionId: number;
-	objectDefinitionsRelationshipsURL: string;
-	readOnly?: boolean;
-	requestParams: {
-		method: 'POST' | 'PUT';
-		url: string;
-	};
-	successMessage: string;
-	title: string;
-	validateExpressionURL: string;
-}
-
-interface ErrorMessage {
-	fieldName: keyof ObjectAction;
-	message?: string;
-	messages?: ErrorMessage[];
-}
-
-interface Error {
-	[key: string]: string | Error;
-}
-
-interface IUseObjectActionForm {
-	initialValues: Partial<ObjectAction>;
-	onSubmit: (field: ObjectAction) => void;
-}
-
-export type ActionError = FormError<ObjectAction & ObjectActionParameters> & {
-	predefinedValues?: {[key: string]: string};
-};

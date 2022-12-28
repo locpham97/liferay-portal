@@ -40,23 +40,34 @@ public class FieldSummaryResourceImpl extends BaseFieldSummaryResourceImpl {
 
 		String[] syncedAccountFieldNames =
 			analyticsConfiguration.syncedAccountFieldNames();
+		String[] syncedCategoryFieldNames =
+			analyticsConfiguration.syncedCategoryFieldNames();
 		String[] syncedContactFieldNames =
 			analyticsConfiguration.syncedContactFieldNames();
 		String[] syncedOrderFieldNames =
 			analyticsConfiguration.syncedOrderFieldNames();
+		String[] syncedOrderItemFieldNames =
+			analyticsConfiguration.syncedOrderItemFieldNames();
 		String[] syncedProductFieldNames =
 			analyticsConfiguration.syncedProductFieldNames();
+		String[] syncedProductChannelFieldNames =
+			analyticsConfiguration.syncedProductChannelFieldNames();
 		String[] syncedUserFieldNames =
 			analyticsConfiguration.syncedUserFieldNames();
 
 		return new FieldSummary() {
 			{
 				account = syncedAccountFieldNames.length;
-				order = syncedOrderFieldNames.length;
+				order =
+					syncedOrderFieldNames.length +
+						syncedOrderItemFieldNames.length;
 				people =
 					syncedContactFieldNames.length +
 						syncedUserFieldNames.length;
-				product = syncedProductFieldNames.length;
+				product =
+					syncedCategoryFieldNames.length +
+						syncedProductFieldNames.length +
+							syncedProductChannelFieldNames.length;
 			}
 		};
 	}

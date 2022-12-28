@@ -20,6 +20,7 @@ import com.google.common.collect.Multimap;
 
 import com.liferay.poshi.core.elements.PoshiElementAttribute;
 import com.liferay.poshi.core.elements.PoshiElementException;
+import com.liferay.poshi.core.elements.PropertyPoshiElement;
 import com.liferay.poshi.core.pql.PQLEntity;
 import com.liferay.poshi.core.pql.PQLEntityFactory;
 import com.liferay.poshi.core.prose.PoshiProseMatcher;
@@ -736,7 +737,15 @@ public class PoshiContext {
 
 		for (Element propertyElement : rootPropertyElements) {
 			String propertyName = propertyElement.attributeValue("name");
+
 			String propertyValue = propertyElement.attributeValue("value");
+
+			if (Validator.isNull(propertyValue)) {
+				PropertyPoshiElement propertyPoshiElement =
+					(PropertyPoshiElement)propertyElement;
+
+				propertyValue = propertyPoshiElement.getVarValue();
+			}
 
 			properties.setProperty(propertyName, propertyValue);
 		}
@@ -746,7 +755,15 @@ public class PoshiContext {
 
 		for (Element propertyElement : commandPropertyElements) {
 			String propertyName = propertyElement.attributeValue("name");
+
 			String propertyValue = propertyElement.attributeValue("value");
+
+			if (Validator.isNull(propertyValue)) {
+				PropertyPoshiElement propertyPoshiElement =
+					(PropertyPoshiElement)propertyElement;
+
+				propertyValue = propertyPoshiElement.getVarValue();
+			}
 
 			properties.setProperty(propertyName, propertyValue);
 		}

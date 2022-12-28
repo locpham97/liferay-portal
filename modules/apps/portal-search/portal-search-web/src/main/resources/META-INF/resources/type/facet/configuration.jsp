@@ -28,8 +28,8 @@ page import="com.liferay.portal.kernel.util.Constants" %><%@
 page import="com.liferay.portal.kernel.util.WebKeys" %><%@
 page import="com.liferay.portal.search.asset.SearchableAssetClassNamesProvider" %><%@
 page import="com.liferay.portal.search.web.internal.facet.display.context.AssetEntriesSearchFacetDisplayContext" %><%@
-page import="com.liferay.portal.search.web.internal.facet.display.context.AssetEntriesSearchFacetTermDisplayContext" %><%@
 page import="com.liferay.portal.search.web.internal.type.facet.configuration.TypeFacetPortletInstanceConfiguration" %><%@
+page import="com.liferay.portal.search.web.internal.type.facet.portlet.TypeFacetPortlet" %><%@
 page import="com.liferay.portal.search.web.internal.type.facet.portlet.TypeFacetPortletPreferences" %><%@
 page import="com.liferay.portal.search.web.internal.util.PortletPreferencesJspUtil" %>
 
@@ -70,7 +70,7 @@ TypeFacetPortletPreferences typeFacetPortletPreferences = new com.liferay.portal
 		>
 			<div class="display-template">
 				<liferay-template:template-selector
-					className="<%= AssetEntriesSearchFacetTermDisplayContext.class.getName() %>"
+					className="<%= TypeFacetPortlet.class.getName() %>"
 					displayStyle="<%= typeFacetPortletInstanceConfiguration.displayStyle() %>"
 					displayStyleGroupId="<%= assetEntriesSearchFacetDisplayContext.getDisplayStyleGroupId() %>"
 					refreshURL="<%= configurationRenderURL %>"
@@ -86,6 +86,13 @@ TypeFacetPortletPreferences typeFacetPortletPreferences = new com.liferay.portal
 			<aui:input label="type-parameter-name" name="<%= PortletPreferencesJspUtil.getInputName(TypeFacetPortletPreferences.PREFERENCE_KEY_PARAMETER_NAME) %>" value="<%= typeFacetPortletPreferences.getParameterName() %>" />
 
 			<aui:input label="frequency-threshold" name="<%= PortletPreferencesJspUtil.getInputName(TypeFacetPortletPreferences.PREFERENCE_KEY_FREQUENCY_THRESHOLD) %>" value="<%= typeFacetPortletPreferences.getFrequencyThreshold() %>" />
+
+			<aui:select label="order-terms-by" name="<%= PortletPreferencesJspUtil.getInputName(TypeFacetPortletPreferences.PREFERENCE_KEY_ORDER) %>" value="<%= typeFacetPortletPreferences.getOrder() %>">
+				<aui:option label="term-frequency-descending" value="count:desc" />
+				<aui:option label="term-frequency-ascending" value="count:asc" />
+				<aui:option label="term-value-ascending" value="key:asc" />
+				<aui:option label="term-value-descending" value="key:desc" />
+			</aui:select>
 
 			<aui:input label="display-frequencies" name="<%= PortletPreferencesJspUtil.getInputName(TypeFacetPortletPreferences.PREFERENCE_KEY_FREQUENCIES_VISIBLE) %>" type="checkbox" value="<%= typeFacetPortletPreferences.isFrequenciesVisible() %>" />
 

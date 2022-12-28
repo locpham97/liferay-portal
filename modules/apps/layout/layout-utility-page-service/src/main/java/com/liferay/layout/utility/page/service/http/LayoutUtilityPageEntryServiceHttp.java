@@ -53,7 +53,9 @@ public class LayoutUtilityPageEntryServiceHttp {
 	public static com.liferay.layout.utility.page.model.LayoutUtilityPageEntry
 			addLayoutUtilityPageEntry(
 				HttpPrincipal httpPrincipal, String externalReferenceCode,
-				long groupId, String name, String type, long masterLayoutPlid)
+				long groupId, long plid, long previewFileEntryId,
+				boolean defaultLayoutUtilityPageEntry, String name, String type,
+				long masterLayoutPlid)
 		throws com.liferay.portal.kernel.exception.PortalException {
 
 		try {
@@ -63,7 +65,8 @@ public class LayoutUtilityPageEntryServiceHttp {
 				_addLayoutUtilityPageEntryParameterTypes0);
 
 			MethodHandler methodHandler = new MethodHandler(
-				methodKey, externalReferenceCode, groupId, name, type,
+				methodKey, externalReferenceCode, groupId, plid,
+				previewFileEntryId, defaultLayoutUtilityPageEntry, name, type,
 				masterLayoutPlid);
 
 			Object returnObj = null;
@@ -546,7 +549,8 @@ public class LayoutUtilityPageEntryServiceHttp {
 
 	private static final Class<?>[] _addLayoutUtilityPageEntryParameterTypes0 =
 		new Class[] {
-			String.class, long.class, String.class, String.class, long.class
+			String.class, long.class, long.class, long.class, boolean.class,
+			String.class, String.class, long.class
 		};
 	private static final Class<?>[] _copyLayoutUtilityPageEntryParameterTypes1 =
 		new Class[] {

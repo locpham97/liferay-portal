@@ -74,6 +74,22 @@ public class ObjectFieldResourceImpl
 		return _entityModel;
 	}
 
+	@Override
+	public Page<ObjectField>
+			getObjectDefinitionByExternalReferenceCodeObjectFieldsPage(
+				String externalReferenceCode, String search, Filter filter,
+				Pagination pagination, Sort[] sorts)
+		throws Exception {
+
+		com.liferay.object.model.ObjectDefinition objectDefinition =
+			_objectDefinitionLocalService.
+				getObjectDefinitionByExternalReferenceCode(
+					externalReferenceCode, contextCompany.getCompanyId());
+
+		return _getObjectFieldsPage(
+			objectDefinition, search, filter, pagination, sorts);
+	}
+
 	@NestedField(parentClass = ObjectDefinition.class, value = "objectFields")
 	@Override
 	public Page<ObjectField> getObjectDefinitionObjectFieldsPage(
@@ -81,66 +97,30 @@ public class ObjectFieldResourceImpl
 			Pagination pagination, Sort[] sorts)
 		throws Exception {
 
-		com.liferay.object.model.ObjectDefinition objectDefinition =
+		return _getObjectFieldsPage(
 			_objectDefinitionLocalService.getObjectDefinition(
-				objectDefinitionId);
-
-		return SearchUtil.search(
-			HashMapBuilder.put(
-				"create",
-				addAction(
-					ActionKeys.UPDATE, "postObjectDefinitionObjectField",
-					com.liferay.object.model.ObjectDefinition.class.getName(),
-					objectDefinitionId)
-			).put(
-				"createBatch",
-				addAction(
-					ActionKeys.UPDATE, "postObjectDefinitionObjectFieldBatch",
-					com.liferay.object.model.ObjectDefinition.class.getName(),
-					objectDefinitionId)
-			).put(
-				"deleteBatch",
-				addAction(
-					ActionKeys.DELETE, "deleteObjectFieldBatch",
-					com.liferay.object.model.ObjectDefinition.class.getName(),
-					null)
-			).put(
-				"get",
-				addAction(
-					ActionKeys.VIEW, "getObjectDefinitionObjectFieldsPage",
-					com.liferay.object.model.ObjectDefinition.class.getName(),
-					objectDefinitionId)
-			).put(
-				"updateBatch",
-				addAction(
-					ActionKeys.UPDATE, "putObjectFieldBatch",
-					com.liferay.object.model.ObjectDefinition.class.getName(),
-					null)
-			).build(),
-			booleanQuery -> {
-			},
-			filter, com.liferay.object.model.ObjectField.class.getName(),
-			search, pagination,
-			queryConfig -> queryConfig.setSelectedFieldNames(
-				Field.ENTRY_CLASS_PK),
-			searchContext -> {
-				searchContext.setAttribute(Field.NAME, search);
-				searchContext.setAttribute("label", search);
-				searchContext.setAttribute(
-					"objectDefinitionId", objectDefinitionId);
-				searchContext.setCompanyId(contextCompany.getCompanyId());
-			},
-			sorts,
-			document -> _toObjectField(
-				objectDefinition,
-				_objectFieldService.getObjectField(
-					GetterUtil.getLong(document.get(Field.ENTRY_CLASS_PK)))));
+				objectDefinitionId),
+			search, filter, pagination, sorts);
 	}
 
 	@Override
 	public ObjectField getObjectField(Long objectFieldId) throws Exception {
 		return _toObjectField(
 			_objectFieldService.getObjectField(objectFieldId));
+	}
+
+	@Override
+	public ObjectField postObjectDefinitionByExternalReferenceCodeObjectField(
+			String externalReferenceCode, ObjectField objectField)
+		throws Exception {
+
+		com.liferay.object.model.ObjectDefinition objectDefinition =
+			_objectDefinitionLocalService.
+				getObjectDefinitionByExternalReferenceCode(
+					externalReferenceCode, contextCompany.getCompanyId());
+
+		return postObjectDefinitionObjectField(
+			objectDefinition.getObjectDefinitionId(), objectField);
 	}
 
 	@Override
@@ -166,8 +146,9 @@ public class ObjectFieldResourceImpl
 				ObjectFieldUtil.getDBType(
 					objectField.getDBTypeAsString(),
 					objectField.getTypeAsString()),
-				objectField.getDefaultValue(), objectField.getIndexed(),
-				objectField.getIndexedAsKeyword(),
+				objectField.getDefaultValue(),
+				GetterUtil.getBoolean(objectField.getIndexed()),
+				GetterUtil.getBoolean(objectField.getIndexedAsKeyword()),
 				objectField.getIndexedLanguageId(),
 				LocalizedMapUtil.getLocalizedMap(objectField.getLabel()),
 				objectField.getName(), objectField.getRequired(),
@@ -230,8 +211,9 @@ public class ObjectFieldResourceImpl
 				ObjectFieldUtil.getDBType(
 					objectField.getDBTypeAsString(),
 					objectField.getTypeAsString()),
-				objectField.getDefaultValue(), objectField.getIndexed(),
-				objectField.getIndexedAsKeyword(),
+				objectField.getDefaultValue(),
+				GetterUtil.getBoolean(objectField.getIndexed()),
+				GetterUtil.getBoolean(objectField.getIndexedAsKeyword()),
 				objectField.getIndexedLanguageId(),
 				LocalizedMapUtil.getLocalizedMap(objectField.getLabel()),
 				objectField.getName(), objectField.getRequired(),
@@ -244,6 +226,64 @@ public class ObjectFieldResourceImpl
 							objectField.getListTypeDefinitionId(),
 							objectFieldSetting, _objectFieldSettingLocalService,
 							_objectFilterLocalService))));
+	}
+
+	private Page<ObjectField> _getObjectFieldsPage(
+			com.liferay.object.model.ObjectDefinition objectDefinition,
+			String search, Filter filter, Pagination pagination, Sort[] sorts)
+		throws Exception {
+
+		return SearchUtil.search(
+			HashMapBuilder.put(
+				"create",
+				addAction(
+					ActionKeys.UPDATE, "postObjectDefinitionObjectField",
+					com.liferay.object.model.ObjectDefinition.class.getName(),
+					objectDefinition.getObjectDefinitionId())
+			).put(
+				"createBatch",
+				addAction(
+					ActionKeys.UPDATE, "postObjectDefinitionObjectFieldBatch",
+					com.liferay.object.model.ObjectDefinition.class.getName(),
+					objectDefinition.getObjectDefinitionId())
+			).put(
+				"deleteBatch",
+				addAction(
+					ActionKeys.DELETE, "deleteObjectFieldBatch",
+					com.liferay.object.model.ObjectDefinition.class.getName(),
+					null)
+			).put(
+				"get",
+				addAction(
+					ActionKeys.VIEW, "getObjectDefinitionObjectFieldsPage",
+					com.liferay.object.model.ObjectDefinition.class.getName(),
+					objectDefinition.getObjectDefinitionId())
+			).put(
+				"updateBatch",
+				addAction(
+					ActionKeys.UPDATE, "putObjectFieldBatch",
+					com.liferay.object.model.ObjectDefinition.class.getName(),
+					null)
+			).build(),
+			booleanQuery -> {
+			},
+			filter, com.liferay.object.model.ObjectField.class.getName(),
+			search, pagination,
+			queryConfig -> queryConfig.setSelectedFieldNames(
+				Field.ENTRY_CLASS_PK),
+			searchContext -> {
+				searchContext.setAttribute(Field.NAME, search);
+				searchContext.setAttribute("label", search);
+				searchContext.setAttribute(
+					"objectDefinitionId",
+					objectDefinition.getObjectDefinitionId());
+				searchContext.setCompanyId(contextCompany.getCompanyId());
+			},
+			sorts,
+			document -> _toObjectField(
+				objectDefinition,
+				_objectFieldService.getObjectField(
+					GetterUtil.getLong(document.get(Field.ENTRY_CLASS_PK)))));
 	}
 
 	private ObjectField _toObjectField(

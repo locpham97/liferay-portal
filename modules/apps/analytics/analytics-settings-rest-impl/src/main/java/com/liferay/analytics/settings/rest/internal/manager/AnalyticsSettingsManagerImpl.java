@@ -17,8 +17,10 @@ package com.liferay.analytics.settings.rest.internal.manager;
 import aQute.bnd.annotation.metatype.Meta;
 
 import com.liferay.analytics.settings.configuration.AnalyticsConfiguration;
-import com.liferay.analytics.settings.rest.internal.constants.FieldAccountConstants;
-import com.liferay.analytics.settings.rest.internal.constants.FieldPeopleConstants;
+import com.liferay.analytics.settings.rest.constants.FieldAccountConstants;
+import com.liferay.analytics.settings.rest.constants.FieldOrderConstants;
+import com.liferay.analytics.settings.rest.constants.FieldPeopleConstants;
+import com.liferay.analytics.settings.rest.constants.FieldProductConstants;
 import com.liferay.analytics.settings.rest.manager.AnalyticsSettingsManager;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.configuration.metatype.annotations.ExtendedObjectClassDefinition;
@@ -401,11 +403,22 @@ public class AnalyticsSettingsManagerImpl implements AnalyticsSettingsManager {
 		AnalyticsSettingsManagerImpl.class);
 
 	private static final Map<String, String[]> _defaults = HashMapBuilder.put(
-		"syncedAccountFieldNames", FieldAccountConstants.FIELD_ACCOUNT_NAMES
+		"syncedAccountFieldNames", FieldAccountConstants.FIELD_ACCOUNT_DEFAULTS
 	).put(
-		"syncedContactFieldNames", FieldPeopleConstants.FIELD_CONTACT_NAMES
+		"syncedCategoryFieldNames", FieldProductConstants.FIELD_CATEGORY_NAMES
 	).put(
-		"syncedUserFieldNames", FieldPeopleConstants.FIELD_USER_NAMES
+		"syncedContactFieldNames", FieldPeopleConstants.FIELD_CONTACT_DEFAULTS
+	).put(
+		"syncedOrderFieldNames", FieldOrderConstants.FIELD_ORDER_NAMES
+	).put(
+		"syncedOrderItemFieldNames", FieldOrderConstants.FIELD_ORDER_ITEM_NAMES
+	).put(
+		"syncedProductChannelFieldNames",
+		FieldProductConstants.FIELD_PRODUCT_CHANNEL_NAMES
+	).put(
+		"syncedProductFieldNames", FieldProductConstants.FIELD_PRODUCT_NAMES
+	).put(
+		"syncedUserFieldNames", FieldPeopleConstants.FILED_USER_DEFAULTS
 	).build();
 
 	private long _commerceChannelClassNameId;

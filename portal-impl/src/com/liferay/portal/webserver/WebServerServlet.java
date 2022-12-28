@@ -140,7 +140,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -191,10 +190,10 @@ public class WebServerServlet extends HttpServlet {
 				_checkFileEntry(pathArray);
 			}
 			else if (_PATH_SEPARATOR_FILE_ENTRY.equals(pathArray[0])) {
-				Optional<FileEntry> fileEntryOptional = _resolveFileEntry(
+				FileEntry fileEntry = _resolveFileEntry(
 					httpServletRequest, pathArray);
 
-				if (!fileEntryOptional.isPresent()) {
+				if (fileEntry == null) {
 					return false;
 				}
 			}
@@ -242,6 +241,27 @@ public class WebServerServlet extends HttpServlet {
 						_checkFileEntry(pathArray);
 					}
 				}
+			}
+
+			String objectDefinitionExternalReferenceCode = ParamUtil.getString(
+				httpServletRequest, "objectDefinitionExternalReferenceCode");
+
+			if (Validator.isNotNull(objectDefinitionExternalReferenceCode)) {
+				Message message = new Message();
+
+				message.put("companyId", user.getCompanyId());
+				message.put(
+					"objectDefinitionExternalReferenceCode",
+					objectDefinitionExternalReferenceCode);
+				message.put(
+					"objectEntryExternalReferenceCode",
+					ParamUtil.getString(
+						httpServletRequest,
+						"objectEntryExternalReferenceCode"));
+				message.put("userId", user.getUserId());
+
+				_messageBus.sendMessage(
+					DestinationNames.OBJECT_ENTRY_ATTACHMENT_DOWNLOAD, message);
 			}
 		}
 		catch (Exception exception) {
@@ -1186,26 +1206,6 @@ public class WebServerServlet extends HttpServlet {
 					inputStream, contentLength, contentType);
 			}
 		}
-
-		String objectDefinitionExternalReferenceCode = ParamUtil.getString(
-			httpServletRequest, "objectDefinitionExternalReferenceCode");
-
-		if (Validator.isNotNull(objectDefinitionExternalReferenceCode)) {
-			Message message = new Message();
-
-			message.put("companyId", user.getCompanyId());
-			message.put(
-				"objectDefinitionExternalReferenceCode",
-				objectDefinitionExternalReferenceCode);
-			message.put(
-				"objectEntryExternalReferenceCode",
-				ParamUtil.getString(
-					httpServletRequest, "objectEntryExternalReferenceCode"));
-			message.put("userId", user.getUserId());
-
-			_messageBus.sendMessage(
-				DestinationNames.OBJECT_ENTRY_ATTACHMENT_DOWNLOAD, message);
-		}
 	}
 
 	protected void sendFile(
@@ -1500,12 +1500,12 @@ public class WebServerServlet extends HttpServlet {
 			PropsValues.WEB_SERVER_SERVLET_DIRECTORY_INDEXING_ENABLED);
 	}
 
-	private static Optional<FileEntry> _resolveFileEntry(
+	private static FileEntry _resolveFileEntry(
 			HttpServletRequest httpServletRequest, String[] pathArray)
 		throws Exception {
 
 		if (_fileEntryFriendlyURLResolver == null) {
-			return Optional.empty();
+			return null;
 		}
 
 		User user = _getUser(httpServletRequest);
@@ -1713,13 +1713,14 @@ public class WebServerServlet extends HttpServlet {
 			return fileEntry;
 		}
 		else if (_PATH_SEPARATOR_FILE_ENTRY.equals(pathArray[0])) {
-			Optional<FileEntry> fileEntryOptional = _resolveFileEntry(
+			FileEntry fileEntry = _resolveFileEntry(
 				httpServletRequest, pathArray);
 
-			FileEntry fileEntry = fileEntryOptional.orElseThrow(
-				() -> new NoSuchFileEntryException(
+			if (fileEntry == null) {
+				throw new NoSuchFileEntryException(
 					"No file entry found for friendly URL " +
-						Arrays.toString(pathArray)));
+						Arrays.toString(pathArray));
+			}
 
 			_checkFileEntry(fileEntry, httpServletRequest);
 

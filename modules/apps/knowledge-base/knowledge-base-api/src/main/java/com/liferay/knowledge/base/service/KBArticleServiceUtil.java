@@ -100,6 +100,14 @@ public class KBArticleServiceUtil {
 			groupId, resourcePrimKey, fileName, tempFolderName);
 	}
 
+	public static KBArticle expireKBArticle(
+			long resourcePrimKey,
+			com.liferay.portal.kernel.service.ServiceContext serviceContext)
+		throws PortalException {
+
+		return getService().expireKBArticle(resourcePrimKey, serviceContext);
+	}
+
 	public static KBArticle fetchFirstChildKBArticle(
 		long groupId, long parentResourcePrimKey) {
 
@@ -167,12 +175,13 @@ public class KBArticleServiceUtil {
 	}
 
 	public static String getGroupKBArticlesRSS(
-			int status, int rssDelta, String rssDisplayStyle, String rssFormat,
+			int status, int max, String type, double version,
+			String displayStyle,
 			com.liferay.portal.kernel.theme.ThemeDisplay themeDisplay)
 		throws PortalException {
 
 		return getService().getGroupKBArticlesRSS(
-			status, rssDelta, rssDisplayStyle, rssFormat, themeDisplay);
+			status, max, type, version, displayStyle, themeDisplay);
 	}
 
 	public static KBArticle getKBArticle(long resourcePrimKey, int version)
@@ -191,13 +200,13 @@ public class KBArticleServiceUtil {
 	}
 
 	public static String getKBArticleRSS(
-			long resourcePrimKey, int status, int rssDelta,
-			String rssDisplayStyle, String rssFormat,
+			long resourcePrimKey, int status, int max, String type,
+			double version, String displayStyle,
 			com.liferay.portal.kernel.theme.ThemeDisplay themeDisplay)
 		throws PortalException {
 
 		return getService().getKBArticleRSS(
-			resourcePrimKey, status, rssDelta, rssDisplayStyle, rssFormat,
+			resourcePrimKey, status, max, type, version, displayStyle,
 			themeDisplay);
 	}
 

@@ -1064,9 +1064,7 @@ definition {
 			locator1 = "Message#CHECKOUT_SUCCESS",
 			value1 = "You now have a lock on this document. No one else can edit this document until you unlock it. This lock will automatically expire in 1 day.");
 
-		AssertClick(
-			locator1 = "Button#CHECKIN",
-			value1 = "Checkin");
+		DMNavigator.gotoVerticalEllipsisMenuItem(menuItem = "Checkin");
 
 		if (IsElementPresent(locator1 = "DocumentsAndMedia#CHECKIN_DIALOG_TITLE")) {
 			if ("${revision}" == "Major") {
@@ -1526,9 +1524,7 @@ definition {
 				value1 = "You cannot modify this document because it was locked by ${userName}");
 		}
 		else {
-			AssertClick(
-				locator1 = "Button#EDIT",
-				value1 = "Edit");
+			DMNavigator.gotoVerticalEllipsisMenuItem(menuItem = "Edit");
 		}
 
 		if (isSet(dmDocumentFileEdit)) {
@@ -1820,9 +1816,15 @@ definition {
 
 		ScrollWebElementIntoView(locator1 = "Portlet#TITLE");
 
-		//MouseOver.mouseOverNotVisible(locator1 = "AP#ASSET_EDIT");
+		MouseOver.mouseOverNotVisible(locator1 = "Icon#EDIT_PENCIL");
 
-		Click.mouseOverClick(locator1 = "AP#ASSET_EDIT");
+		Click.mouseOverClick(locator1 = "Icon#EDIT_PENCIL");
+
+		if (IsElementPresent.isElementPresentAfterWait(locator1 = "Icon#EDIT_PENCIL")) {
+			Click.mouseOverClick(locator1 = "Icon#EDIT_PENCIL");
+		}
+
+		WaitForElementPresent(locator1 = "TextInput#TITLE");
 
 		if (isSet(dmDocumentTitleEdit)) {
 			Type(
@@ -3029,9 +3031,7 @@ definition {
 
 		AssertElementPresent(locator1 = "Message#CHECKOUT_SUCCESS");
 
-		AssertClick(
-			locator1 = "Button#EDIT",
-			value1 = "Edit");
+		DMNavigator.gotoVerticalEllipsisMenuItem(menuItem = "Edit");
 
 		VerifyElementPresent(locator1 = "Message#SUCCESS");
 	}
@@ -3203,6 +3203,14 @@ definition {
 		Panel.expandPanel(panel = "Automatically Extracted Metadata");
 	}
 
+	macro viewDocumentInfoTitleCmdPG {
+		var key_dmDocumentTitle = "${dmDocumentTitle}";
+
+		AssertTextEquals(
+			locator1 = "DocumentsAndMediaDocument#DOCUMENT_INFO_TITLE",
+			value1 = "${dmDocumentTitle}");
+	}
+
 	macro viewDocumentMetadataCP {
 		var key_metadataData = "${metadataData}";
 		var key_metadataLabel = "${metadataLabel}";
@@ -3240,7 +3248,7 @@ definition {
 		var key_dmDocumentTitle = "${dmDocumentTitle}";
 
 		AssertTextEquals(
-			locator1 = "DocumentsAndMediaDocument#DOCUMENT_INFO_TITLE",
+			locator1 = "DocumentsAndMediaDocument#DOCUMENT_TITLE",
 			value1 = "${dmDocumentTitle}");
 	}
 
@@ -3301,9 +3309,7 @@ definition {
 
 			WaitForPageLoad();
 
-			Click.clickNoMouseOver(
-				key_text = "${localizedButton}",
-				locator1 = "Button#ANY");
+			ManagementBar.clickInfo();
 		}
 		else {
 			DMDocument.expandInfo();
@@ -3652,11 +3658,9 @@ definition {
 		var key_dmDocumentDescription = "${dmDocumentDescription}";
 		var key_dmDocumentTitle = "${dmDocumentTitle}";
 
-		DMDocument.expandInfo();
+		DMDocument.viewDocumentTitleCmdPG(dmDocumentTitle = "${dmDocumentTitle} (Version ${dmDocumentVersionNumber})");
 
-		AssertTextEquals(
-			locator1 = "DocumentsAndMediaDocument#DOCUMENT_INFO_TITLE",
-			value1 = "${dmDocumentTitle} (Version ${dmDocumentVersionNumber})");
+		DMDocument.expandInfo();
 
 		AssertTextEquals(
 			locator1 = "DocumentsAndMediaDocument#DOCUMENT_INFO_DESCRIPTION",
@@ -3687,7 +3691,7 @@ definition {
 
 		DMDocument.expandInfo();
 
-		DMDocument.viewDocumentTitleCmdPG(dmDocumentTitle = "${dmDocumentTitle}");
+		DMDocument.viewDocumentInfoTitleCmdPG(dmDocumentTitle = "${dmDocumentTitle}");
 
 		if (isSet(dmDocumentDescription)) {
 			var key_dmDocumentDescription = "${dmDocumentDescription}";
@@ -3923,6 +3927,10 @@ definition {
 		var key_mgDocumentTitle = "${mgDocumentTitle}";
 
 		if (isSet(mgVideoPreview)) {
+			while (IsElementNotPresent(key_mgDocumentTitle = "${mgDocumentTitle}", locator1 = "MediaGallery#ENTRY_THUMBNAIL")) {
+				Refresh();
+			}
+
 			Click(
 				key_mgDocumentTitle = "${mgDocumentTitle}",
 				locator1 = "MediaGallery#ENTRY_THUMBNAIL");
@@ -4119,9 +4127,7 @@ definition {
 
 			DMDocument.gotoEntry(dmDocumentTitle = "${dmDocumentTitle}");
 
-			AssertTextEquals(
-				locator1 = "DocumentsAndMediaDocument#DOCUMENT_INFO_TITLE",
-				value1 = "${dmDocumentTitle}");
+			DMDocument.viewDocumentInfoTitleCmdPG(dmDocumentTitle = "${dmDocumentTitle}");
 		}
 	}
 
@@ -4131,10 +4137,8 @@ definition {
 		for (var tagName : list "${tagName}") {
 			var tagName = StringUtil.lowerCase("${tagName}");
 
-			var key_tagName = "${tagName}";
-
-			AssertTextEquals(
-				locator1 = "DocumentsAndMedia#TAG",
+			AssertTextEquals.assertPartialText(
+				locator1 = "DocumentsAndMediaDocument#DOCUMENT_INFO_TAGS",
 				value1 = "${tagName}");
 		}
 	}

@@ -14,6 +14,9 @@
 
 package com.liferay.layout.utility.page.service.impl;
 
+import com.liferay.document.library.kernel.model.DLFileEntry;
+import com.liferay.document.library.kernel.model.DLFolderConstants;
+import com.liferay.document.library.kernel.service.DLFileEntryLocalService;
 import com.liferay.layout.utility.page.exception.LayoutUtilityPageEntryNameException;
 import com.liferay.layout.utility.page.model.LayoutUtilityPageEntry;
 import com.liferay.layout.utility.page.service.base.LayoutUtilityPageEntryLocalServiceBaseImpl;
@@ -29,7 +32,8 @@ import com.liferay.portal.kernel.model.ModelHintsUtil;
 import com.liferay.portal.kernel.model.ResourceConstants;
 import com.liferay.portal.kernel.model.SystemEventConstants;
 import com.liferay.portal.kernel.model.User;
-import com.liferay.portal.kernel.portletfilerepository.PortletFileRepositoryUtil;
+import com.liferay.portal.kernel.portletfilerepository.PortletFileRepository;
+import com.liferay.portal.kernel.repository.model.Folder;
 import com.liferay.portal.kernel.service.LayoutLocalService;
 import com.liferay.portal.kernel.service.LayoutSetLocalService;
 import com.liferay.portal.kernel.service.ResourceLocalService;
@@ -67,11 +71,12 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 
 	@Override
 	public LayoutUtilityPageEntry addLayoutUtilityPageEntry(
-			String externalReferenceCode, long userId, long groupId,
+			String externalReferenceCode, long userId, long groupId, long plid,
+			long previewFileEntryId, boolean defaultLayoutUtilityPageEntry,
 			String name, String type, long masterLayoutPlid)
 		throws PortalException {
 
-		_validateName(groupId, name);
+		_validateName(groupId, 0, name, type);
 
 		LayoutUtilityPageEntry layoutUtilityPageEntry =
 			layoutUtilityPageEntryPersistence.create(
@@ -87,19 +92,21 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 
 		layoutUtilityPageEntry.setExternalReferenceCode(externalReferenceCode);
 
-		long plid = 0;
+		if (plid == 0) {
+			Layout layout = _addLayout(
+				userId, groupId, name, masterLayoutPlid,
+				ServiceContextThreadLocal.getServiceContext());
 
-		Layout layout = _addLayout(
-			userId, groupId, name, masterLayoutPlid,
-			WorkflowConstants.STATUS_APPROVED,
-			ServiceContextThreadLocal.getServiceContext());
-
-		if (layout != null) {
-			plid = layout.getPlid();
+			if (layout != null) {
+				plid = layout.getPlid();
+			}
 		}
 
 		layoutUtilityPageEntry.setPlid(plid);
 
+		layoutUtilityPageEntry.setPreviewFileEntryId(previewFileEntryId);
+		layoutUtilityPageEntry.setDefaultLayoutUtilityPageEntry(
+			defaultLayoutUtilityPageEntry);
 		layoutUtilityPageEntry.setName(name);
 		layoutUtilityPageEntry.setType(type);
 
@@ -131,8 +138,13 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 			groupId, sourceLayoutUtilityPageEntry.getName(),
 			sourceLayoutUtilityPageEntry.getType(), serviceContext.getLocale());
 
+		long previewFileEntryId = _copyPreviewFileEntryId(
+			userId, sourceLayoutUtilityPageEntry.getPreviewFileEntryId(), name,
+			serviceContext);
+
 		return addLayoutUtilityPageEntry(
-			null, userId, serviceContext.getScopeGroupId(), name,
+			null, userId, serviceContext.getScopeGroupId(), 0,
+			previewFileEntryId, false, name,
 			sourceLayoutUtilityPageEntry.getType(), 0);
 	}
 
@@ -169,11 +181,29 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 		// Portlet file entry
 
 		if (layoutUtilityPageEntry.getPreviewFileEntryId() > 0) {
-			PortletFileRepositoryUtil.deletePortletFileEntry(
+			DLFileEntry dlFileEntry = _dlFileEntryLocalService.fetchDLFileEntry(
 				layoutUtilityPageEntry.getPreviewFileEntryId());
+
+			if (dlFileEntry != null) {
+				_portletFileRepository.deletePortletFolder(
+					dlFileEntry.getFolderId());
+			}
 		}
 
 		return layoutUtilityPageEntry;
+	}
+
+	@Override
+	public LayoutUtilityPageEntry deleteLayoutUtilityPageEntry(
+			long layoutUtilityPageEntryId)
+		throws PortalException {
+
+		LayoutUtilityPageEntry layoutUtilityPageEntry =
+			layoutUtilityPageEntryLocalService.fetchLayoutUtilityPageEntry(
+				layoutUtilityPageEntryId);
+
+		return layoutUtilityPageEntryLocalService.deleteLayoutUtilityPageEntry(
+			layoutUtilityPageEntry);
 	}
 
 	@Override
@@ -273,7 +303,9 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 			layoutUtilityPageEntryPersistence.fetchByPrimaryKey(
 				layoutUtilityPageEntryId);
 
-		_validateName(layoutUtilityPageEntry.getGroupId(), name);
+		_validateName(
+			layoutUtilityPageEntry.getGroupId(), layoutUtilityPageEntryId, name,
+			layoutUtilityPageEntry.getType());
 
 		layoutUtilityPageEntry.setName(name);
 
@@ -282,7 +314,7 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 
 	private Layout _addLayout(
 			long userId, long groupId, String name, long masterLayoutPlid,
-			int status, ServiceContext serviceContext)
+			ServiceContext serviceContext)
 		throws PortalException {
 
 		Map<Locale, String> titleMap = Collections.singletonMap(
@@ -290,10 +322,6 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 
 		UnicodeProperties typeSettingsUnicodeProperties =
 			new UnicodeProperties();
-
-		if (status == WorkflowConstants.STATUS_APPROVED) {
-			typeSettingsUnicodeProperties.put("published", "true");
-		}
 
 		if (masterLayoutPlid > 0) {
 			typeSettingsUnicodeProperties.setProperty(
@@ -329,7 +357,7 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 			String colorSchemeId = _getColorSchemeId(
 				layout.getCompanyId(), themeId);
 
-			draftLayout = _layoutLocalService.updateLookAndFeel(
+			_layoutLocalService.updateLookAndFeel(
 				groupId, true, draftLayout.getLayoutId(), themeId,
 				colorSchemeId, StringPool.BLANK);
 
@@ -338,15 +366,32 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 				StringPool.BLANK);
 		}
 
-		if (status == WorkflowConstants.STATUS_DRAFT) {
-			_layoutLocalService.updateStatus(
-				userId, draftLayout.getPlid(), status, serviceContext);
+		return _layoutLocalService.updateStatus(
+			userId, layout.getPlid(), WorkflowConstants.STATUS_DRAFT,
+			serviceContext);
+	}
 
-			layout = _layoutLocalService.updateStatus(
-				userId, layout.getPlid(), status, serviceContext);
+	private long _copyPreviewFileEntryId(
+			long userId, long previewFileEntryId, String name,
+			ServiceContext serviceContext)
+		throws PortalException {
+
+		if (previewFileEntryId == 0) {
+			return previewFileEntryId;
 		}
 
-		return layout;
+		DLFileEntry dlFileEntry = _dlFileEntryLocalService.getFileEntry(
+			previewFileEntryId);
+
+		Folder folder = _portletFileRepository.addPortletFolder(
+			userId, dlFileEntry.getRepositoryId(),
+			DLFolderConstants.DEFAULT_PARENT_FOLDER_ID, name, serviceContext);
+
+		DLFileEntry copyDLFileEntry = _dlFileEntryLocalService.copyFileEntry(
+			userId, dlFileEntry.getGroupId(), dlFileEntry.getRepositoryId(),
+			previewFileEntryId, folder.getFolderId(), serviceContext);
+
+		return copyDLFileEntry.getFileEntryId();
 	}
 
 	private String _getColorSchemeId(long companyId, String themeId) {
@@ -379,7 +424,9 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 		return name;
 	}
 
-	private void _validateName(long groupId, String name)
+	private void _validateName(
+			long groupId, long layoutUtilityPageEntryId, String name,
+			String type)
 		throws PortalException {
 
 		if (Validator.isNull(name)) {
@@ -394,7 +441,33 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 			throw new LayoutUtilityPageEntryNameException.
 				MustNotExceedMaximumSize(nameMaxLength);
 		}
+
+		for (char c : _BLACKLIST_CHAR) {
+			if (name.indexOf(c) >= 0) {
+				throw new LayoutUtilityPageEntryNameException.
+					MustNotContainInvalidCharacters(c);
+			}
+		}
+
+		LayoutUtilityPageEntry duplicatedLayoutUtilityPageEntry =
+			layoutUtilityPageEntryPersistence.fetchByG_N_T(groupId, name, type);
+
+		if ((duplicatedLayoutUtilityPageEntry != null) &&
+			(duplicatedLayoutUtilityPageEntry.getLayoutUtilityPageEntryId() !=
+				layoutUtilityPageEntryId)) {
+
+			throw new LayoutUtilityPageEntryNameException.MustNotBeDuplicate(
+				groupId, name);
+		}
 	}
+
+	private static final char[] _BLACKLIST_CHAR = {
+		';', '/', '?', ':', '@', '=', '&', '\"', '<', '>', '#', '%', '{', '}',
+		'|', '\\', '^', '~', '[', ']', '`'
+	};
+
+	@Reference
+	private DLFileEntryLocalService _dlFileEntryLocalService;
 
 	@Reference
 	private Language _language;
@@ -404,6 +477,9 @@ public class LayoutUtilityPageEntryLocalServiceImpl
 
 	@Reference
 	private LayoutSetLocalService _layoutSetLocalService;
+
+	@Reference
+	private PortletFileRepository _portletFileRepository;
 
 	@Reference
 	private ResourceLocalService _resourceLocalService;
