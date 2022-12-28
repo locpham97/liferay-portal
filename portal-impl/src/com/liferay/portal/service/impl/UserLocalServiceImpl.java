@@ -1,11 +1,11 @@
 /**
  * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
- *
+ * <p>
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
  * Software Foundation; either version 2.1 of the License, or (at your option)
  * any later version.
- *
+ * <p>
  * This library is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
@@ -346,27 +346,15 @@ public class UserLocalServiceImpl extends UserLocalServiceBaseImpl {
 			user.getCompanyId(), PropsKeys.ADMIN_DEFAULT_GROUP_NAMES,
 			StringPool.NEW_LINE, PropsValues.ADMIN_DEFAULT_GROUP_NAMES);
 
-		for (String defaultGroupName : defaultGroupNames) {
-			Company company = _companyPersistence.findByPrimaryKey(
-				user.getCompanyId());
+		Set<Long> defaultGroupIds = _removeGroupIsLimitedToParentSiteMembers(
+			defaultGroupNames, user);
 
-			if (StringUtil.equalsIgnoreCase(
-					defaultGroupName, company.getName())) {
-
-				defaultGroupName = GroupConstants.GUEST;
+		for (Long groupId : defaultGroupIds) {
+			if (!ArrayUtil.contains(userGroupIds, groupId)) {
+				groupIdsSet.add(groupId);
 			}
-
-			Group group = _groupPersistence.fetchByC_GK(
-				user.getCompanyId(), defaultGroupName);
-
-			if (group != null) {
-				if (!ArrayUtil.contains(userGroupIds, group.getGroupId())) {
-					groupIdsSet.add(group.getGroupId());
-				}
-				else {
-					addDefaultRolesAndTeams(
-						group.getGroupId(), new long[] {user.getUserId()});
-				}
+			else {
+				addDefaultRolesAndTeams(groupId, new long[] {user.getUserId()});
 			}
 		}
 
@@ -2128,7 +2116,7 @@ public class UserLocalServiceImpl extends UserLocalServiceBaseImpl {
 	 *
 	 * @param      companyId the primary key of the user's company
 	 * @param      facebookId the user's Facebook ID
-	 * @return     the user with the Facebook ID, or <code>null</code> if a user
+	 * @return the user with the Facebook ID, or <code>null</code> if a user
 	 *             with the Facebook ID could not be found
 	 * @deprecated As of Athanasius (7.3.x), with no direct replacement
 	 */
@@ -2168,7 +2156,7 @@ public class UserLocalServiceImpl extends UserLocalServiceBaseImpl {
 	 *
 	 * @param      companyId the primary key of the user's company
 	 * @param      openId the user's OpenID
-	 * @return     the user with the OpenID, or <code>null</code> if a user with
+	 * @return the user with the OpenID, or <code>null</code> if a user with
 	 *             the OpenID could not be found
 	 * @deprecated As of Athanasius (7.3.x), with no direct replacement
 	 */
@@ -2761,7 +2749,7 @@ public class UserLocalServiceImpl extends UserLocalServiceBaseImpl {
 	 *
 	 * @param      companyId the primary key of the user's company
 	 * @param      facebookId the user's Facebook ID
-	 * @return     the user with the Facebook ID
+	 * @return the user with the Facebook ID
 	 * @deprecated As of Athanasius (7.3.x), with no direct replacement
 	 */
 	@Deprecated
@@ -2816,7 +2804,7 @@ public class UserLocalServiceImpl extends UserLocalServiceBaseImpl {
 	 *
 	 * @param      companyId the primary key of the user's company
 	 * @param      openId the user's OpenID
-	 * @return     the user with the OpenID
+	 * @return the user with the OpenID
 	 * @deprecated As of Athanasius (7.3.x), with no direct replacement
 	 */
 	@Deprecated
@@ -4314,7 +4302,7 @@ public class UserLocalServiceImpl extends UserLocalServiceBaseImpl {
 	 *
 	 * @param      userId the primary key of the user
 	 * @param      facebookId the user's new Facebook ID
-	 * @return     the user
+	 * @return the user
 	 * @deprecated As of Athanasius (7.3.x), with no direct replacement
 	 */
 	@Deprecated
@@ -4712,7 +4700,7 @@ public class UserLocalServiceImpl extends UserLocalServiceBaseImpl {
 	 *
 	 * @param      userId the primary key of the user
 	 * @param      openId the new OpenID
-	 * @return     the user
+	 * @return the user
 	 * @deprecated As of Athanasius (7.3.x), with no direct replacement
 	 */
 	@Deprecated
@@ -7026,6 +7014,73 @@ public class UserLocalServiceImpl extends UserLocalServiceBaseImpl {
 		}
 
 		return newEncPwd.equals(user.getPassword());
+	}
+
+	private void _removeGroupAndDescendantsGroup(
+		Group group, Set<Long> defaultGroupIds, Long userId) {
+
+		defaultGroupIds.remove(group.getGroupId());
+
+		List<Group> descendantsGroups = group.getDescendants(true);
+
+		for (Group descendantGroup : descendantsGroups) {
+			if (descendantGroup.isLimitedToParentSiteMembers() &&
+				!_groupLocalService.hasUserGroup(
+					userId, descendantGroup.getParentGroupId(), true) &&
+				ArrayUtil.contains(
+					defaultGroupIds.toArray(), descendantGroup.getGroupId())) {
+
+				defaultGroupIds.remove(descendantGroup.getGroupId());
+			}
+		}
+	}
+
+	private Set<Long> _removeGroupIsLimitedToParentSiteMembers(
+			String[] defaultGroupNames, User user)
+		throws PortalException {
+
+		Set<Group> defaultGroups = new HashSet<>();
+		Set<Long> defaultGroupIds = new HashSet<>();
+
+		Company company = _companyPersistence.findByPrimaryKey(
+			user.getCompanyId());
+
+		for (String defaultGroupName : defaultGroupNames) {
+			if (StringUtil.equalsIgnoreCase(
+					defaultGroupName, company.getName())) {
+
+				defaultGroupName = GroupConstants.GUEST;
+			}
+
+			Group group = _groupPersistence.fetchByC_GK(
+				user.getCompanyId(), defaultGroupName);
+
+			if (group != null) {
+				defaultGroups.add(group);
+				defaultGroupIds.add(group.getGroupId());
+			}
+		}
+
+		for (Group group : defaultGroups) {
+			if (!ArrayUtil.contains(
+					defaultGroupIds.toArray(), group.getGroupId())) {
+
+				continue;
+			}
+
+			long parentGroupId = group.getParentGroupId();
+
+			if (group.isLimitedToParentSiteMembers() &&
+				!_groupLocalService.hasUserGroup(
+					user.getUserId(), parentGroupId, true) &&
+				!ArrayUtil.contains(defaultGroupIds.toArray(), parentGroupId)) {
+
+				_removeGroupAndDescendantsGroup(
+					group, defaultGroupIds, user.getUserId());
+			}
+		}
+
+		return defaultGroupIds;
 	}
 
 	private void _sendNotificationEmail(
