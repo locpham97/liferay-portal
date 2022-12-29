@@ -89,6 +89,7 @@ import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.MimeTypesUtil;
+import com.liferay.portal.kernel.util.Props;
 import com.liferay.portal.kernel.util.ProxyUtil;
 import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringUtil;
@@ -97,6 +98,7 @@ import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
+import com.liferay.portal.util.PropsImpl;
 import com.liferay.portal.util.PropsUtil;
 import com.liferay.portal.vulcan.dto.converter.DTOConverterContext;
 import com.liferay.portal.vulcan.dto.converter.DTOConverterRegistry;
@@ -109,6 +111,10 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.MathContext;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+
 import java.text.DateFormat;
 
 import java.util.ArrayList;
@@ -119,11 +125,14 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
+
+import org.hsqldb.jdbc.JDBCDriver;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -183,6 +192,7 @@ public class DefaultObjectEntryManagerImplTest {
 
 	@Before
 	public void setUp() throws Exception {
+		_enableOracleSyntax();
 		_objectDefinition1 = _createObjectDefinition(
 			Arrays.asList(
 				new TextObjectFieldBuilder(
@@ -1178,6 +1188,34 @@ public class DefaultObjectEntryManagerImplTest {
 		objectFieldSetting.setValue(value);
 
 		return objectFieldSetting;
+	}
+
+	private void _enableOracleSyntax() {
+		Props props = new PropsImpl();
+
+		String jdbcURL = props.get("jdbc.default.url");
+
+		String className = props.get("jdbc.default.driverClassName");
+
+		if (className.equals(JDBCDriver.class.getName())) {
+			try {
+				Connection connection = JDBCDriver.getConnection(
+					jdbcURL,
+					new Properties() {
+						{
+							put("password", "");
+							put("user", "sa");
+						}
+					});
+
+				Statement statement = connection.createStatement();
+
+				statement.execute("SET DATABASE SQL SYNTAX ORA TRUE");
+			}
+			catch (SQLException sqlException) {
+				throw new RuntimeException(sqlException);
+			}
+		}
 	}
 
 	private Long _getAttachmentObjectFieldValue() throws Exception {
