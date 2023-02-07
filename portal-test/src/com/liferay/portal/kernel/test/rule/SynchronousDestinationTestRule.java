@@ -155,8 +155,6 @@ public class SynchronousDestinationTestRule
 				"liferay/segments_entry_reindex");
 			Filter subscrpitionSenderFilter = _registerDestinationFilter(
 				DestinationNames.SUBSCRIPTION_SENDER);
-			Filter tensorflowModelDownloadFilter = _registerDestinationFilter(
-				"liferay/tensorflow_model_download");
 			Filter videoProcessorFilter = _registerDestinationFilter(
 				DestinationNames.DOCUMENT_LIBRARY_VIDEO_PROCESSOR);
 
@@ -167,8 +165,7 @@ public class SynchronousDestinationTestRule
 				commerceShipmentFilter, commerceSubscriptionFilter,
 				ddmStructureReindexFilter, mailFilter, pdfProcessorFilter,
 				rawMetaDataProcessorFilter, segmentsEntryReindexFilter,
-				subscrpitionSenderFilter, tensorflowModelDownloadFilter,
-				videoProcessorFilter);
+				subscrpitionSenderFilter, videoProcessorFilter);
 
 			_destinations = ReflectionTestUtil.getFieldValue(
 				MessageBusUtil.getMessageBus(), "_destinations");
