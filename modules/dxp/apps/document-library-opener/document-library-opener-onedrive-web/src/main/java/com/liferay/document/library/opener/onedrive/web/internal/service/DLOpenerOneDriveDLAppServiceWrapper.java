@@ -171,8 +171,8 @@ public class DLOpenerOneDriveDLAppServiceWrapper extends DLAppServiceWrapper {
 
 			return super.updateFileEntryAndCheckIn(
 				fileEntryId, sourceFileName, mimeType, title, urlTitle,
-				description, changeLog, dlVersionNumberIncrease, null,
-				expirationDate, revisionDate, serviceContext);
+				description, changeLog, dlVersionNumberIncrease, inputStream,
+				size, expirationDate, revisionDate, serviceContext);
 		}
 
 		checkInFileEntry(
