@@ -69,6 +69,7 @@ import com.liferay.portal.kernel.servlet.DummyHttpServletResponse;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.LocaleThreadLocal;
 import com.liferay.portal.kernel.util.OrderByComparator;
 import com.liferay.portal.kernel.util.Portal;
@@ -443,6 +444,13 @@ public class DataLayoutResourceImpl extends BaseDataLayoutResourceImpl {
 
 		if (Validator.isNull(keywords)) {
 			return Page.of(
+				HashMapBuilder.<String, Map<String, String>>put(
+					"createBatch",
+					addAction(
+						ActionKeys.VIEW, ddmStructure.getStructureId(),
+						"postDataDefinitionDataLayoutBatch",
+						_dataDefinitionModelResourcePermission)
+				).build(),
 				transform(
 					_ddmStructureLayoutLocalService.getStructureLayouts(
 						ddmStructure.getGroupId(),
