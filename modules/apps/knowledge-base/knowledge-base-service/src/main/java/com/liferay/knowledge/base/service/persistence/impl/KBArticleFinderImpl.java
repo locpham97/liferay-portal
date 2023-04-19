@@ -15,8 +15,15 @@
 package com.liferay.knowledge.base.service.persistence.impl;
 
 import com.liferay.knowledge.base.model.KBArticle;
+import com.liferay.knowledge.base.model.KBArticleTable;
 import com.liferay.knowledge.base.model.impl.KBArticleImpl;
 import com.liferay.knowledge.base.service.persistence.KBArticleFinder;
+import com.liferay.petra.sql.dsl.DSLFunctionFactoryUtil;
+import com.liferay.petra.sql.dsl.DSLQueryFactoryUtil;
+import com.liferay.petra.sql.dsl.expression.Expression;
+import com.liferay.petra.sql.dsl.expression.Predicate;
+import com.liferay.petra.sql.dsl.query.FromStep;
+import com.liferay.petra.sql.dsl.query.OrderByStep;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.dao.orm.custom.sql.CustomSQL;
 import com.liferay.portal.kernel.dao.orm.QueryPos;
@@ -24,7 +31,11 @@ import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.dao.orm.SQLQuery;
 import com.liferay.portal.kernel.dao.orm.Session;
 import com.liferay.portal.kernel.dao.orm.Type;
+import com.liferay.portal.kernel.exception.SystemException;
+import com.liferay.portal.kernel.security.permission.InlineSQLHelperUtil;
 import com.liferay.portal.kernel.util.StringUtil;
+import com.liferay.portal.kernel.util.Validator;
+import com.liferay.portal.kernel.workflow.WorkflowConstants;
 
 import java.util.Iterator;
 import java.util.List;
@@ -38,6 +49,11 @@ import org.osgi.service.component.annotations.Reference;
 @Component(service = KBArticleFinder.class)
 public class KBArticleFinderImpl
 	extends KBArticleFinderBaseImpl implements KBArticleFinder {
+
+	@Override
+	public int countByKeywords(long groupId, String keywords, int status) {
+		return doCountByKeywords(groupId, keywords, status, false);
+	}
 
 	@Override
 	public int countByUrlTitle(
@@ -82,6 +98,27 @@ public class KBArticleFinderImpl
 	}
 
 	@Override
+	public int filterCountByKeywords(
+		long groupId, String keywords, int status) {
+
+		return doCountByKeywords(groupId, keywords, status, true);
+	}
+
+	@Override
+	public List<KBArticle> filterFindByKeywords(
+		long groupId, String keywords, int status, int start, int end) {
+
+		return doFindByKeywords(groupId, keywords, status, start, end, true);
+	}
+
+	@Override
+	public List<KBArticle> findByKeywords(
+		long groupId, String keywords, int status, int start, int end) {
+
+		return doFindByKeywords(groupId, keywords, status, start, end, false);
+	}
+
+	@Override
 	public List<KBArticle> findByUrlTitle(
 		long groupId, String kbFolderUrlTitle, String kbArticleUrlTitle,
 		int[] status, int start, int end) {
@@ -113,6 +150,76 @@ public class KBArticleFinderImpl
 		}
 	}
 
+	protected int doCountByKeywords(
+		long groupId, String keywords, int status, boolean inlineSQLHelper) {
+
+		Session session = null;
+
+		try {
+			session = openSession();
+
+			SQLQuery sqlQuery = session.createSynchronizedSQLQuery(
+				_getOrderByStep(
+					DSLQueryFactoryUtil.select(
+						DSLFunctionFactoryUtil.count(
+							KBArticleTable.INSTANCE.kbArticleId
+						).as(
+							COUNT_COLUMN_NAME
+						)),
+					groupId, keywords, status, inlineSQLHelper));
+
+			sqlQuery.addScalar(COUNT_COLUMN_NAME, Type.LONG);
+
+			Iterator<Long> iterator = sqlQuery.iterate();
+
+			if (iterator.hasNext()) {
+				Long count = iterator.next();
+
+				if (count != null) {
+					return count.intValue();
+				}
+			}
+
+			return 0;
+		}
+		catch (Exception exception) {
+			throw new SystemException(exception);
+		}
+		finally {
+			closeSession(session);
+		}
+	}
+
+	protected List<KBArticle> doFindByKeywords(
+		long groupId, String keywords, int status, int start, int end,
+		boolean inlineSQLHelper) {
+
+		Session session = null;
+
+		try {
+			session = openSession();
+
+			OrderByStep orderByStep = _getOrderByStep(
+				DSLQueryFactoryUtil.select(KBArticleTable.INSTANCE), groupId,
+				keywords, status, inlineSQLHelper);
+
+			SQLQuery sqlQuery = session.createSynchronizedSQLQuery(
+				orderByStep.orderBy(
+					KBArticleTable.INSTANCE.priority.ascending()));
+
+			sqlQuery.addEntity("KBArticle", KBArticleImpl.class);
+
+			return (List<KBArticle>)QueryUtil.list(
+				sqlQuery, getDialect(), start, end);
+		}
+		catch (Exception exception) {
+			throw new SystemException(exception);
+		}
+		finally {
+			closeSession(session);
+		}
+	}
+
 	protected String replaceWorkflowStatus(String sql, int[] status) {
 		StringBundler sb = new StringBundler(status.length);
 
@@ -125,6 +232,83 @@ public class KBArticleFinderImpl
 		}
 
 		return StringUtil.replace(sql, "[$WORKFLOW_STATUS$]", sb.toString());
+	}
+
+	private Predicate _getKeywordsPredicate(
+		Expression<String> expression, String[] keywords) {
+
+		expression = DSLFunctionFactoryUtil.lower(expression);
+
+		Predicate keywordsPredicate = null;
+
+		for (String keyword : keywords) {
+			if (keyword == null) {
+				continue;
+			}
+
+			Predicate keywordPredicate = expression.like(keyword);
+
+			if (keywordsPredicate == null) {
+				keywordsPredicate = keywordPredicate;
+			}
+			else {
+				keywordsPredicate = keywordsPredicate.or(keywordPredicate);
+			}
+		}
+
+		return keywordsPredicate;
+	}
+
+	private OrderByStep _getOrderByStep(
+		FromStep fromStep, long groupId, String keywords, int status,
+		boolean inlineSQLHelper) {
+
+		Predicate wherePredicate = KBArticleTable.INSTANCE.groupId.eq(groupId);
+
+		if (inlineSQLHelper) {
+			wherePredicate = Predicate.withParentheses(
+				wherePredicate.and(
+					InlineSQLHelperUtil.getPermissionWherePredicate(
+						KBArticle.class, KBArticleTable.INSTANCE.kbArticleId,
+						groupId)));
+		}
+
+		if (Validator.isNotNull(keywords)) {
+			String[] keywordsArray = _customSQL.keywords(keywords, true);
+
+			Predicate keywordsPredicate = Predicate.withParentheses(
+				_getKeywordsPredicate(
+					KBArticleTable.INSTANCE.title, keywordsArray
+				).or(
+					_getKeywordsPredicate(
+						DSLFunctionFactoryUtil.castClobText(
+							KBArticleTable.INSTANCE.content),
+						keywordsArray)
+				));
+
+			wherePredicate = wherePredicate.and(keywordsPredicate);
+		}
+
+		if (status != WorkflowConstants.STATUS_ANY) {
+			wherePredicate = wherePredicate.and(
+				KBArticleTable.INSTANCE.status.eq(status));
+		}
+
+		if (status == WorkflowConstants.STATUS_APPROVED) {
+			wherePredicate = wherePredicate.and(
+				KBArticleTable.INSTANCE.main.eq(Boolean.TRUE));
+		}
+
+		if (status == WorkflowConstants.STATUS_ANY) {
+			wherePredicate = wherePredicate.and(
+				KBArticleTable.INSTANCE.latest.eq(Boolean.TRUE));
+		}
+
+		return fromStep.from(
+			KBArticleTable.INSTANCE
+		).where(
+			wherePredicate
+		);
 	}
 
 	private static final String _COUNT_BY_URL_TITLE =
