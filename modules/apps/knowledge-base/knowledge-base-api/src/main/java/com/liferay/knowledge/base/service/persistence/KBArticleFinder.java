@@ -23,9 +23,21 @@ import org.osgi.annotation.versioning.ProviderType;
 @ProviderType
 public interface KBArticleFinder {
 
+	public int countByKeywords(long groupId, String keywords, int status);
+
 	public int countByUrlTitle(
 		long groupId, String kbFolderUrlTitle, String kbArticleUrlTitle,
 		int[] status);
+
+	public int filterCountByKeywords(long groupId, String keywords, int status);
+
+	public java.util.List<com.liferay.knowledge.base.model.KBArticle>
+		filterFindByKeywords(
+			long groupId, String keywords, int status, int start, int end);
+
+	public java.util.List<com.liferay.knowledge.base.model.KBArticle>
+		findByKeywords(
+			long groupId, String keywords, int status, int start, int end);
 
 	public java.util.List<com.liferay.knowledge.base.model.KBArticle>
 		findByUrlTitle(
