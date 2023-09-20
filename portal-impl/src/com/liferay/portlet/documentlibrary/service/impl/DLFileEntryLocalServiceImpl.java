@@ -70,6 +70,7 @@ import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.dao.orm.RestrictionsFactoryUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.SystemException;
+import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.interval.IntervalActionProcessor;
 import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.lock.InvalidLockException;
@@ -102,10 +103,12 @@ import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
 import com.liferay.portal.kernel.search.Sort;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
+import com.liferay.portal.kernel.security.permission.ResourceActionsUtil;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
 import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.OrganizationLocalService;
 import com.liferay.portal.kernel.service.ResourceLocalService;
+import com.liferay.portal.kernel.service.ResourcePermissionLocalService;
 import com.liferay.portal.kernel.service.RoleLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.UserGroupLocalService;
@@ -133,6 +136,7 @@ import com.liferay.portal.kernel.util.OrderByComparator;
 import com.liferay.portal.kernel.util.ParamUtil;
 import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.ServiceProxyFactory;
+import com.liferay.portal.kernel.util.SetUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.SubscriptionSender;
 import com.liferay.portal.kernel.util.Time;
@@ -148,6 +152,7 @@ import com.liferay.portlet.documentlibrary.DLGroupServiceSettings;
 import com.liferay.portlet.documentlibrary.constants.DLConstants;
 import com.liferay.portlet.documentlibrary.model.impl.DLFileEntryImpl;
 import com.liferay.portlet.documentlibrary.service.base.DLFileEntryLocalServiceBaseImpl;
+import com.liferay.portlet.documentlibrary.util.DLPermissionPropagationUtil;
 import com.liferay.ratings.kernel.service.RatingsStatsLocalService;
 
 import java.io.File;
@@ -161,6 +166,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -2057,26 +2063,50 @@ public class DLFileEntryLocalServiceImpl
 			DLFileEntry dlFileEntry, ServiceContext serviceContext)
 		throws PortalException {
 
-		if (serviceContext.isAddGroupPermissions() ||
-			serviceContext.isAddGuestPermissions()) {
+		List<Long> ancestorFolderIds = new ArrayList<>();
 
-			_resourceLocalService.addResources(
+		if (dlFileEntry.getFolderId() !=
+				DLFolderConstants.DEFAULT_PARENT_FOLDER_ID) {
+
+			DLFolder folder = dlFileEntry.getFolder();
+
+			ancestorFolderIds.add(folder.getFolderId());
+			ancestorFolderIds.addAll(folder.getAncestorFolderIds());
+		}
+
+		long inheritableParentFolderId =
+			DLPermissionPropagationUtil.getInheritableParentFolderId(
 				dlFileEntry.getCompanyId(), dlFileEntry.getGroupId(),
-				dlFileEntry.getUserId(), DLFileEntry.class.getName(),
-				dlFileEntry.getFileEntryId(), false, serviceContext);
+				ancestorFolderIds);
+
+		if (FeatureFlagManagerUtil.isEnabled("LPS-87806") &&
+			(inheritableParentFolderId >= 0)) {
+
+			_initializeFileEntryPermissionForDLFolder(
+				inheritableParentFolderId, dlFileEntry);
 		}
 		else {
-			if (serviceContext.isDeriveDefaultPermissions()) {
-				serviceContext.deriveDefaultPermissions(
-					dlFileEntry.getRepositoryId(),
-					DLFileEntryConstants.getClassName());
-			}
+			if (serviceContext.isAddGroupPermissions() ||
+				serviceContext.isAddGuestPermissions()) {
 
-			_resourceLocalService.addModelResources(
-				dlFileEntry.getCompanyId(), dlFileEntry.getGroupId(),
-				dlFileEntry.getUserId(), DLFileEntry.class.getName(),
-				dlFileEntry.getFileEntryId(),
-				serviceContext.getModelPermissions());
+				_resourceLocalService.addResources(
+					dlFileEntry.getCompanyId(), dlFileEntry.getGroupId(),
+					dlFileEntry.getUserId(), DLFileEntry.class.getName(),
+					dlFileEntry.getFileEntryId(), false, serviceContext);
+			}
+			else {
+				if (serviceContext.isDeriveDefaultPermissions()) {
+					serviceContext.deriveDefaultPermissions(
+						dlFileEntry.getRepositoryId(),
+						DLFileEntryConstants.getClassName());
+				}
+
+				_resourceLocalService.addModelResources(
+					dlFileEntry.getCompanyId(), dlFileEntry.getGroupId(),
+					dlFileEntry.getUserId(), DLFileEntry.class.getName(),
+					dlFileEntry.getFileEntryId(),
+					serviceContext.getModelPermissions());
+			}
 		}
 	}
 
@@ -2768,6 +2798,59 @@ public class DLFileEntryLocalServiceImpl
 
 			return _dlFileEntryTypeLocalService.getDefaultFileEntryTypeId(
 				dlFileEntry.getFolderId());
+		}
+	}
+
+	private void _initializeFileEntryPermissionForDLFolder(
+			long inheritableParentFolderId, DLFileEntry dlFileEntry)
+		throws PortalException {
+
+		long companyId = dlFileEntry.getCompanyId();
+
+		long resourcePrimaryKey = inheritableParentFolderId;
+
+		if (inheritableParentFolderId ==
+				DLFolderConstants.DEFAULT_PARENT_FOLDER_ID) {
+
+			resourcePrimaryKey = dlFileEntry.getGroupId();
+		}
+
+		// TODO: Add Initialize in here for common permission
+
+		_resourceLocalService.addResources(
+			companyId, dlFileEntry.getGroupId(), 0,
+			DLFileEntryConstants.getClassName(),
+			String.valueOf(dlFileEntry.getFileEntryId()), false, true, true);
+
+		int count = _resourcePermissionLocalService.getResourcePermissionsCount(
+			companyId, DLFileEntry.class.getName(),
+			ResourceConstants.SCOPE_INDIVIDUAL,
+			String.valueOf(resourcePrimaryKey));
+
+		if (count == 0) {
+			Map<Long, Set<String>> dlFileEntryRoleIdsToActionIds =
+				_resourcePermissionLocalService.
+					getAvailableResourcePermissionActionIds(
+						companyId, DLFileEntryConstants.getClassName(),
+						ResourceConstants.SCOPE_INDIVIDUAL,
+						String.valueOf(dlFileEntry.getFileEntryId()),
+						SetUtil.fromCollection(
+							ResourceActionsUtil.getModelResourceActions(
+								DLFileEntryConstants.getClassName())));
+
+			Set<Long> dlFileEntryRoleIds =
+				dlFileEntryRoleIdsToActionIds.keySet();
+
+			for (Long dlFileEntryRoleId : dlFileEntryRoleIds) {
+				Set<String> dlFileEntryActionIds =
+					dlFileEntryRoleIdsToActionIds.get(dlFileEntryRoleId);
+
+				_resourcePermissionLocalService.setResourcePermissions(
+					companyId, DLFileEntry.class.getName(),
+					ResourceConstants.SCOPE_INDIVIDUAL,
+					String.valueOf(resourcePrimaryKey), dlFileEntryRoleId,
+					dlFileEntryActionIds.toArray(new String[0]));
+			}
 		}
 	}
 
@@ -3706,6 +3789,9 @@ public class DLFileEntryLocalServiceImpl
 
 	@BeanReference(type = ResourceLocalService.class)
 	private ResourceLocalService _resourceLocalService;
+
+	@BeanReference(type = ResourcePermissionLocalService.class)
+	private ResourcePermissionLocalService _resourcePermissionLocalService;
 
 	@BeanReference(type = RoleLocalService.class)
 	private RoleLocalService _roleLocalService;
