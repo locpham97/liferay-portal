@@ -103,7 +103,6 @@ import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
 import com.liferay.portal.kernel.search.Sort;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
-import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.security.permission.ResourceActionsUtil;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
 import com.liferay.portal.kernel.service.GroupLocalService;
@@ -161,11 +160,9 @@ import java.io.InputStream;
 import java.io.Serializable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -2801,6 +2798,54 @@ public class DLFileEntryLocalServiceImpl
 
 			return _dlFileEntryTypeLocalService.getDefaultFileEntryTypeId(
 				dlFileEntry.getFolderId());
+		}
+	}
+
+	private void _inheritRolesPermissions(
+			long inheritanceFolderId, DLFileEntry dlFileEntry)
+		throws PortalException {
+
+		long companyId = dlFileEntry.getCompanyId();
+
+		long resourcePrimKey = inheritanceFolderId;
+
+		if (inheritanceFolderId == 0) {
+			resourcePrimKey = dlFileEntry.getGroupId();
+		}
+
+		int count = _resourcePermissionLocalService.getResourcePermissionsCount(
+			companyId, DLFileEntry.class.getName(),
+			ResourceConstants.SCOPE_INDIVIDUAL,
+			String.valueOf(resourcePrimKey));
+
+		if (count == 0) {
+			_initializeFileEntryPermissionForDLFolder(
+				resourcePrimKey, dlFileEntry);
+
+			return;
+		}
+
+		Map<Long, Set<String>> dlFileEntryRoleIdsToActionIds =
+			_resourcePermissionLocalService.
+				getAvailableResourcePermissionActionIds(
+					companyId, DLFileEntryConstants.getClassName(),
+					ResourceConstants.SCOPE_INDIVIDUAL,
+					String.valueOf(resourcePrimKey),
+					SetUtil.fromCollection(
+						ResourceActionsUtil.getModelResourceActions(
+							DLFileEntryConstants.getClassName())));
+
+		Set<Long> dlFileEntryRoleIds = dlFileEntryRoleIdsToActionIds.keySet();
+
+		for (Long dlFileEntryRoleId : dlFileEntryRoleIds) {
+			Set<String> dlFileEntryActionIds =
+				dlFileEntryRoleIdsToActionIds.get(dlFileEntryRoleId);
+
+			_resourcePermissionLocalService.setResourcePermissions(
+				companyId, DLFileEntry.class.getName(),
+				ResourceConstants.SCOPE_INDIVIDUAL,
+				String.valueOf(dlFileEntry.getFileEntryId()), dlFileEntryRoleId,
+				dlFileEntryActionIds.toArray(new String[0]));
 		}
 	}
 
