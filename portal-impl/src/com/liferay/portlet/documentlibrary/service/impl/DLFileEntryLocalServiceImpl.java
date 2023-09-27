@@ -2807,12 +2807,12 @@ public class DLFileEntryLocalServiceImpl
 
 		long companyId = dlFileEntry.getCompanyId();
 
-		long resourcePrimaryKey = inheritableParentFolderId;
+		long primKey = inheritableParentFolderId;
 
 		if (inheritableParentFolderId ==
 				DLFolderConstants.DEFAULT_PARENT_FOLDER_ID) {
 
-			resourcePrimaryKey = dlFileEntry.getGroupId();
+			primKey = dlFileEntry.getGroupId();
 		}
 
 		// TODO: Add Initialize in here for common permission
@@ -2822,10 +2822,13 @@ public class DLFileEntryLocalServiceImpl
 			DLFileEntryConstants.getClassName(),
 			String.valueOf(dlFileEntry.getFileEntryId()), false, true, true);
 
+		String compositeClassName = ResourceActionsUtil.getCompositeModelName(
+			DLFileEntryConstants.getClassName(),
+			DLFolderConstants.getClassName());
+
 		int count = _resourcePermissionLocalService.getResourcePermissionsCount(
-			companyId, DLFileEntry.class.getName(),
-			ResourceConstants.SCOPE_INDIVIDUAL,
-			String.valueOf(resourcePrimaryKey));
+			companyId, compositeClassName, ResourceConstants.SCOPE_INDIVIDUAL,
+			String.valueOf(primKey));
 
 		if (count == 0) {
 			Map<Long, Set<String>> dlFileEntryRoleIdsToActionIds =
@@ -2846,9 +2849,9 @@ public class DLFileEntryLocalServiceImpl
 					dlFileEntryRoleIdsToActionIds.get(dlFileEntryRoleId);
 
 				_resourcePermissionLocalService.setResourcePermissions(
-					companyId, DLFileEntry.class.getName(),
+					companyId, compositeClassName,
 					ResourceConstants.SCOPE_INDIVIDUAL,
-					String.valueOf(resourcePrimaryKey), dlFileEntryRoleId,
+					String.valueOf(primKey), dlFileEntryRoleId,
 					dlFileEntryActionIds.toArray(new String[0]));
 			}
 		}
