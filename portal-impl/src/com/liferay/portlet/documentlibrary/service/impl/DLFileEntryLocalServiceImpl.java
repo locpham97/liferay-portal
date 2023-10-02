@@ -103,6 +103,7 @@ import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
 import com.liferay.portal.kernel.search.Sort;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
+import com.liferay.portal.kernel.security.permission.ResourceActionsUtil;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
 import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.OrganizationLocalService;
@@ -2789,47 +2790,91 @@ public class DLFileEntryLocalServiceImpl
 		throws PortalException {
 
 		long parentResourcePrimKey = inheritableParentFolderId;
-		String parentResourceName = DLFolderConstants.getClassName();
 
-		if (inheritableParentFolderId ==
+		if (parentResourcePrimKey ==
 				DLFolderConstants.DEFAULT_PARENT_FOLDER_ID) {
 
-			int count =
-				_resourcePermissionLocalService.getResourcePermissionsCount(
-					dlFileEntry.getCompanyId(), DLConstants.RESOURCE_NAME,
-					ResourceConstants.SCOPE_INDIVIDUAL,
-					String.valueOf(dlFileEntry.getGroupId()));
-
-			if (count == 0) {
-				_resourceLocalService.addResources(
-					dlFileEntry.getCompanyId(), dlFileEntry.getGroupId(), 0,
-					DLConstants.RESOURCE_NAME,
-					String.valueOf(dlFileEntry.getGroupId()), false, true,
-					true);
-			}
-
-			parentResourceName = DLConstants.RESOURCE_NAME;
 			parentResourcePrimKey = dlFileEntry.getGroupId();
 		}
 
-		Map<Long, Set<String>> dlFileEntryRoleIdsToActionIds =
-			DLPermissionPropagationUtil.
-				getDefaultInheritableDocumentPermissions(
-					dlFileEntry.getCompanyId(), dlFileEntry.getGroupId(),
-					parentResourcePrimKey, parentResourceName);
+		String compositeClassName = ResourceActionsUtil.getCompositeModelName(
+			DLFileEntryConstants.getClassName(),
+			DLFolderConstants.getClassName());
 
-		for (Map.Entry<Long, Set<String>> dlFileEntryRoleIdToActionIds :
-				dlFileEntryRoleIdsToActionIds.entrySet()) {
-
-			_resourcePermissionLocalService.setResourcePermissions(
-				dlFileEntry.getCompanyId(), DLFileEntryConstants.getClassName(),
+		int resourcePermissionsCount =
+			_resourcePermissionLocalService.getResourcePermissionsCount(
+				dlFileEntry.getCompanyId(), compositeClassName,
 				ResourceConstants.SCOPE_INDIVIDUAL,
-				String.valueOf(dlFileEntry.getFileEntryId()),
-				dlFileEntryRoleIdToActionIds.getKey(),
-				dlFileEntryRoleIdToActionIds.getValue(
-				).toArray(
-					new String[0]
-				));
+				String.valueOf(parentResourcePrimKey));
+
+		if (resourcePermissionsCount == 0) {
+			String parentResourceName = DLFolderConstants.getClassName();
+
+			if (inheritableParentFolderId ==
+					DLFolderConstants.DEFAULT_PARENT_FOLDER_ID) {
+
+				int count =
+					_resourcePermissionLocalService.getResourcePermissionsCount(
+						dlFileEntry.getCompanyId(), DLConstants.RESOURCE_NAME,
+						ResourceConstants.SCOPE_INDIVIDUAL,
+						String.valueOf(dlFileEntry.getGroupId()));
+
+				if (count == 0) {
+					_resourceLocalService.addResources(
+						dlFileEntry.getCompanyId(), dlFileEntry.getGroupId(), 0,
+						DLConstants.RESOURCE_NAME,
+						String.valueOf(dlFileEntry.getGroupId()), false, true,
+						true);
+				}
+
+				parentResourceName = DLConstants.RESOURCE_NAME;
+			}
+
+			Map<Long, Set<String>> dlFileEntryRoleIdsToActionIds =
+				DLPermissionPropagationUtil.
+					getDefaultInheritableDocumentPermissions(
+						dlFileEntry.getCompanyId(), dlFileEntry.getGroupId(),
+						parentResourcePrimKey, parentResourceName);
+
+			for (Map.Entry<Long, Set<String>> dlFileEntryRoleIdToActionIds :
+					dlFileEntryRoleIdsToActionIds.entrySet()) {
+
+				_resourcePermissionLocalService.setResourcePermissions(
+					dlFileEntry.getCompanyId(),
+					DLFileEntryConstants.getClassName(),
+					ResourceConstants.SCOPE_INDIVIDUAL,
+					String.valueOf(dlFileEntry.getFileEntryId()),
+					dlFileEntryRoleIdToActionIds.getKey(),
+					dlFileEntryRoleIdToActionIds.getValue(
+					).toArray(
+						new String[0]
+					));
+			}
+		}
+		else {
+			Map<Long, Set<String>> dlFileEntryRoleIdsToActionIds =
+				_resourcePermissionLocalService.
+					getAvailableResourcePermissionActionIds(
+						dlFileEntry.getCompanyId(), compositeClassName,
+						ResourceConstants.SCOPE_INDIVIDUAL,
+						String.valueOf(parentResourcePrimKey),
+						ResourceActionsUtil.getModelResourceActions(
+							DLFileEntryConstants.getClassName()));
+
+			for (Map.Entry<Long, Set<String>> dlFileEntryRoleIdToActionIds :
+					dlFileEntryRoleIdsToActionIds.entrySet()) {
+
+				Set<String> dlFileEntryActionIds =
+					dlFileEntryRoleIdToActionIds.getValue();
+
+				_resourcePermissionLocalService.setResourcePermissions(
+					dlFileEntry.getCompanyId(),
+					DLFileEntryConstants.getClassName(),
+					ResourceConstants.SCOPE_INDIVIDUAL,
+					String.valueOf(dlFileEntry.getFileEntryId()),
+					dlFileEntryRoleIdToActionIds.getKey(),
+					dlFileEntryActionIds.toArray(new String[0]));
+			}
 		}
 	}
 
