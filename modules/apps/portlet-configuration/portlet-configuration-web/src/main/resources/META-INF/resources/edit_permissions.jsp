@@ -26,13 +26,19 @@ if (Validator.isNotNull(portletConfigurationPermissionsDisplayContext.getModelRe
 }
 
 PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagation = portletConfigurationPermissionsDisplayContext.getPortletConfigurationPermissionPropagation();
+String undoMessageActive = ParamUtil.getString(request, "undoMessageActive","false");
 %>
 
 <div class="cadmin edit-permissions portlet-configuration-edit-permissions">
 	<div class="portlet-configuration-body-content">
-		<clay:navigation-bar
-			navigationItems="<%= portletConfigurationPermissionsDisplayContext.getNavigationItems() %>"
-		/>
+
+		<h1><%= undoMessageActive%></h1>
+
+		<div id='<%= liferayPortletResponse.getNamespace() + "propagationNavigationBar" %>'>
+			<clay:navigation-bar
+				navigationItems="<%= portletConfigurationPermissionsDisplayContext.getNavigationItems() %>"
+			/>
+		</div>
 
 		<clay:management-toolbar
 			clearResultsURL="<%= portletConfigurationPermissionsDisplayContext.getClearResultsURL() %>"
@@ -275,8 +281,45 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 
 <aui:script>
 	var <portlet:namespace />saveButton = document.getElementById(
-		'<portlet:namespace />saveButton'
+	'<portlet:namespace />saveButton'
 	);
+
+	function openPopUp(event, href){
+		console.log("saldfjasdlf;")
+
+		event.preventDefault();
+
+		Liferay.Util.openModal({
+			bodyHTML: Liferay.Language.get('changing-tab-without-save-helper'),
+			buttons: [
+				{
+					autoFocus: true,
+					displayType: 'secondary',
+					label: Liferay.Language.get('cancel'),
+					type: 'cancel',
+				},
+				{
+					displayType: 'secondary',
+					label: Liferay.Language.get('discard'),
+					onClick: () => {
+						window.location.href = href;
+					},
+				},
+				{
+					displayType: 'warning',
+					label: Liferay.Language.get('save-and-continue'),
+					onClick: () => {
+						saveButton.dispatchEvent(new Event('click'));
+						window.location.href = href;
+					},
+				},
+			],
+			status: 'warning',
+			title: Liferay.Language.get('discard-changes')+'?',
+		});
+	}
+
+
 
 	var <portlet:namespace />permissionPropagationEnabledCheckbox = document.getElementById(
 		'<portlet:namespace />permissionPropagationEnabled'
@@ -299,6 +342,29 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 						event.target.checked
 					) {
 						alertMessage.classList.remove('hide');
+
+						console.log("asdfasdf");
+
+						var <portlet:namespace />propagationNavigationBar = document.getElementById(
+							'<portlet:namespace />propagationNavigationBar'
+						);
+
+						console.log(<portlet:namespace />propagationNavigationBar);
+
+						if(<portlet:namespace />propagationNavigationBar) {
+							let navLinks = <portlet:namespace />propagationNavigationBar.getElementsByClassName("nav-link");
+
+							console.log(navLinks);
+
+							for(var i = 0; i < navLinks.length; i++) {
+
+								let navLink = navLinks.item(i);
+
+								navLink.addEventListener("click", e => openPopUp(e, navLink.href) );
+
+							}
+
+						}
 					}
 					else {
 						alertMessage.classList.add('hide');
@@ -317,8 +383,15 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 			) {
 				var form = document.getElementById('<portlet:namespace />fm');
 
+				form.addEventListener('submit', e=> {
+
+	return false;
+	})
+
 				if (form) {
 					submitForm(form);
+
+					return false;
 				}
 			}
 		});

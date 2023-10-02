@@ -48,6 +48,7 @@ import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.Constants;
 import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.ParamUtil;
 import com.liferay.portal.kernel.util.PortalUtil;
@@ -333,7 +334,7 @@ public class PortletConfigurationPermissionsDisplayContext {
 			navigationItems.add(
 				NavigationItemBuilder.setActive(
 					modelResource.equals(getModelResource())
-				).setHref(
+				).setData(HashMapBuilder.<String, Object>put("loctest", modelResource).build()).setHref(
 					PortletURLBuilder.create(
 						getIteratorURL()
 					).setParameter(
