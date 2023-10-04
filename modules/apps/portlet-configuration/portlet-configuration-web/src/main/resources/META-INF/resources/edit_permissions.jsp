@@ -69,6 +69,8 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 
 			</aui:input>
 
+			<aui:input name="redirect" type="hidden" />
+
 			<liferay-ui:search-container
 				searchContainer="<%= roleSearchContainer %>"
 			>
@@ -318,16 +320,20 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 		<portlet:namespace />saveButton.addEventListener('click', (event) => {
 			event.preventDefault();
 
-			if (
-				<%= portletConfigurationPermissionsDisplayContext.getRoleSearchContainer().getTotal() != 0 %>
-			) {
-				var form = document.getElementById('<portlet:namespace />fm');
-
-				if (form) {
-					submitForm(form);
-				}
-			}
+			saveForm();
 		});
+	}
+
+	function saveForm() {
+		if (
+			<%= portletConfigurationPermissionsDisplayContext.getRoleSearchContainer().getTotal() != 0 %>
+		) {
+			var form = document.getElementById('<portlet:namespace />fm');
+
+			if (form) {
+				submitForm(form);
+			}
+		}
 	}
 
 	function openPopUp(href) {
@@ -345,17 +351,20 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 					displayType: 'secondary',
 					label: '<liferay-ui:message key="discard" />',
 					onClick: () => {
-						window.location.href = href;
+						Liferay.Util.navigate(href);
 					},
 				},
 				{
 					displayType: 'warning',
 					label: '<liferay-ui:message key="save-and-continue" />',
 					onClick: () => {
-						<portlet:namespace />saveButton.dispatchEvent(
-							new Event('click')
+						var redirect = document.getElementById(
+							'<portlet:namespace />redirect'
 						);
-						window.location.href = href;
+
+						redirect.value = href;
+
+						saveForm();
 					},
 				},
 			],
@@ -386,7 +395,7 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 					openPopUp(target.href);
 				}
 				else {
-					window.location.href = target.href;
+					Liferay.Util.navigate(target.href);
 				}
 			}
 		});
