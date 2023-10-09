@@ -291,6 +291,9 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 	);
 
 	if (<portlet:namespace />permissionPropagationEnabledCheckbox) {
+		Liferay.Util.LocalStorage.setItem('<portlet:namespace />count', 0,
+			Liferay.Util.LocalStorage.TYPES.NECESSARY);
+
 		var alertMessage = document.getElementById(
 			'<portlet:namespace />alertMessage'
 		);
@@ -386,11 +389,15 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 						? event.target
 						: event.target.parentElement;
 
-				var count = document.getElementById('<portlet:namespace />count');
+
+				let count = Liferay.Util.LocalStorage.getItem('<portlet:namespace />count',
+	Liferay.Util.LocalStorage.TYPES.NECESSARY);
+
+				console.log(count)
 
 				if (
 					!target.classList.contains('active') &&
-					Number(count.value) !== 0
+					Number(count) !== 0
 				) {
 					openPopUp(target.href);
 				}
@@ -400,4 +407,10 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 			}
 		});
 	}
+
+	Liferay.on('destroyPortlet', () => {
+		console.log("remove local storage");
+
+		Liferay.Util.S.removeItem('<portlet:namespace />count');
+	});
 </aui:script>
