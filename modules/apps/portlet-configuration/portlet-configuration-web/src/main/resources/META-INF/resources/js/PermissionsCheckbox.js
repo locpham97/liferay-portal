@@ -42,7 +42,6 @@ export default function PermissionsCheckbox({
 			indeterminate={indeterminate}
 			inline
 			onChange={() => {
-				console.log(initialPermissionPropagationEnabled);
 				setChecked((prevCheckedState) => !prevCheckedState);
 
 				const checkedPermissionChangeCount = Liferay.Util.SessionStorage.getItem(
@@ -71,12 +70,13 @@ export default function PermissionsCheckbox({
 				);
 
 				if (permissionPropagationEnabledCheckbox.checked) {
-
-					if(changeValue !== 0){
+					if (changeValue !== 0) {
 						alertMessage.classList.remove('hide');
 					}
-
-					if(changeValue === 0 && initialPermissionPropagationEnabled === 'true'){
+					else if (
+						changeValue === 0 &&
+						initialPermissionPropagationEnabled === 'true'
+					) {
 						alertMessage.classList.add('hide');
 					}
 				}
