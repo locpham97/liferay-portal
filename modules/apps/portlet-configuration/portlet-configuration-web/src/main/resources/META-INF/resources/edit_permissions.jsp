@@ -313,14 +313,38 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 						initialPermissionPropagationEnabled !==
 						<portlet:namespace />permissionPropagationEnabledCheckbox.checked;
 
-					if (
-						initialPermissionPropagationEnabled ||
-						event.target.checked
-					) {
-						alertMessage.classList.remove('hide');
-					}
-					else {
-						alertMessage.classList.add('hide');
+					let checkedChangeCount = Liferay.Util.SessionStorage.getItem(
+						'<portlet:namespace />checkedPermissionChangeCount',
+						Liferay.Util.SessionStorage.TYPES.FUNCTIONAL
+					);
+
+					console.log(checkedChangeCount);
+
+					if(event.target.checked){
+						if(initialPermissionPropagationEnabled ){
+							if(Number(checkedChangeCount) === 0){
+							console.log('1111');
+							alertMessage.classList.add('hide');
+							} else {
+								console.log('2222');
+								alertMessage.classList.remove('hide');
+							}
+						}
+
+						if(!initialPermissionPropagationEnabled){
+							console.log('3333');
+							alertMessage.classList.remove('hide');
+						}
+					} else {
+						if(!initialPermissionPropagationEnabled){
+							console.log('4444');
+							alertMessage.classList.add('hide');
+						}
+
+						if(initialPermissionPropagationEnabled ){
+							console.log('5555');
+							alertMessage.classList.remove('hide');
+						}
 					}
 				}
 			);
