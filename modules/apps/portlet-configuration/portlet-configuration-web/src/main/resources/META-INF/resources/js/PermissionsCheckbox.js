@@ -27,12 +27,22 @@ export default function PermissionsCheckbox({
 		initialIndeterminate ? 'indeterminate' : ''
 	);
 
+	const permissionPropagationEnabledCheckbox = document.getElementById(
+		_portletNamespace + 'permissionPropagationEnabled'
+	);
+
+	const initialPermissionPropagationEnabled = Liferay.Util.SessionStorage.getItem(
+		`${_portletNamespace}initialPermissionPropagationEnabled`,
+		Liferay.Util.SessionStorage.TYPES.FUNCTIONAL
+	);
+
 	return (
 		<ClayCheckbox
 			checked={checked}
 			indeterminate={indeterminate}
 			inline
 			onChange={() => {
+				console.log(initialPermissionPropagationEnabled);
 				setChecked((prevCheckedState) => !prevCheckedState);
 
 				const checkedPermissionChangeCount = Liferay.Util.SessionStorage.getItem(
@@ -56,20 +66,18 @@ export default function PermissionsCheckbox({
 					setValue('');
 				}
 
-				const permissionPropagationEnabledCheckbox = document.getElementById(
-					_portletNamespace + 'permissionPropagationEnabled'
+				const alertMessage = document.getElementById(
+					_portletNamespace + 'alertMessage'
 				);
 
-				if (permissionPropagationEnabledCheckbox) {
-					const alertMessage = document.getElementById(
-						_portletNamespace + 'alertMessage'
-					);
+				if (permissionPropagationEnabledCheckbox.checked) {
 
-					if (
-						alertMessage.classList.contains('hide') &&
-						permissionPropagationEnabledCheckbox.checked
-					) {
+					if(changeValue !== 0){
 						alertMessage.classList.remove('hide');
+					}
+
+					if(changeValue === 0 && initialPermissionPropagationEnabled === 'true'){
+						alertMessage.classList.add('hide');
 					}
 				}
 			}}

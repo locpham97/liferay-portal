@@ -295,9 +295,16 @@ PortletConfigurationPermissionPropagation portletConfigurationPermissionPropagat
 
 		var isPermissionPropagationEnabledCheckboxChanged = false;
 
+		const initialPermissionPropagationEnabled =
+			<portlet:namespace />permissionPropagationEnabledCheckbox.checked;
+
+		Liferay.Util.SessionStorage.setItem(
+			'<portlet:namespace />initialPermissionPropagationEnabled',
+			initialPermissionPropagationEnabled,
+			Liferay.Util.SessionStorage.TYPES.FUNCTIONAL
+		);
+
 		if (<portlet:namespace />alertMessage) {
-			const initialPermissionPropagationEnabled =
-				<portlet:namespace />permissionPropagationEnabledCheckbox.checked;
 
 			<portlet:namespace />permissionPropagationEnabledCheckbox.addEventListener(
 				'click',
