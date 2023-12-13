@@ -21,6 +21,9 @@ import com.liferay.info.field.InfoFieldSetEntry;
 import com.liferay.info.field.type.MultiselectInfoFieldType;
 import com.liferay.info.field.type.OptionInfoFieldType;
 import com.liferay.info.field.type.SelectInfoFieldType;
+import com.liferay.info.filter.BooleanInfoFilter;
+import com.liferay.info.filter.CategoriesInfoFilter;
+import com.liferay.info.filter.DateInfoFilter;
 import com.liferay.info.filter.InfoFilter;
 import com.liferay.info.filter.KeywordsInfoFilter;
 import com.liferay.info.form.InfoForm;
@@ -92,6 +95,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * @author Jorge Ferrer
@@ -239,7 +243,7 @@ public class ObjectEntrySingleFormVariationInfoCollectionProvider
 
 	@Override
 	public List<InfoFilter> getSupportedInfoFilters() {
-		return Arrays.asList(new KeywordsInfoFilter());
+		return Arrays.asList(new KeywordsInfoFilter(), new BooleanInfoFilter(), new CategoriesInfoFilter());
 	}
 
 	@Override
@@ -362,6 +366,16 @@ public class ObjectEntrySingleFormVariationInfoCollectionProvider
 
 		if (configuration == null) {
 			configuration = Collections.emptyMap();
+		}
+
+		BooleanInfoFilter booleanInfoFilter = collectionQuery.getInfoFilter(BooleanInfoFilter.class);
+
+		Map<String, Boolean> booleanFilterValue = booleanInfoFilter.getBoolean();
+
+		for(Map.Entry<String, Boolean> booleanFilterEntry: booleanFilterValue.entrySet()) {
+			if(!ArrayUtil.contains(configuration.get(booleanFilterEntry.getKey()), StringPool.BLANK)) {
+				configuration.put(booleanFilterEntry.getKey(), new String[] {booleanFilterEntry.getValue().toString()});
+			}
 		}
 
 		for (Map.Entry<String, String[]> entry : configuration.entrySet()) {
